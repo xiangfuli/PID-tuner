@@ -75,10 +75,38 @@ class PIDAutoTuner:
       dpydparam += torch.tensor(py_grads[0]).reshape([4, 1])
       doridparam += torch.tensor(ori_grads[0]).reshape([4, 1])
       # dvdparam += torch.tensor(v_grads[0]).reshape([4, 1])
-      
-      grad = dpxdparam + dpydparam + doridparam # + dvdparam
+
+      # gradient of inputs
+      acc = self.dynamic_system.inputs[0]
+      acc_loss = acc ** 2
+      acc_loss.backward(retain_graph=True)
+      acc_grad = []
+      acc_grad.append(
+        [
+          self.dynamic_system.parameters[0].grad,
+          self.dynamic_system.parameters[1].grad,
+          self.dynamic_system.parameters[2].grad,
+          self.dynamic_system.parameters[3].grad
+        ]
+      )
+      daccdparam = torch.zeros([4, 1])
+      daccdparam += torch.tensor(acc_grad[0]).reshape([4, 1])
+
+      # angleddot = self.dynamic_system.inputs[1]
+      # angleddot_loss = angleddot ** 2
+      # angleddot_loss.backward()
+      # dangleddotdparam = torch.tensor(
+      #   [
+      #     self.dynamic_system.parameters[0].grad,
+      #     self.dynamic_system.parameters[1].grad,
+      #     self.dynamic_system.parameters[2].grad,
+      #     self.dynamic_system.parameters[3].grad
+      #   ]
+      # )
+
+      grad = dpxdparam + dpydparam + doridparam + 0.3 * daccdparam # + dvdparam 
       grad = grad * learning_rate
-      min_num = -100
+      min_num = 0.1
       self.dynamic_system.set_parameters(
         [
           max(min_num, self.dynamic_system.parameters[0].item() - grad[0].item()),
@@ -90,7 +118,7 @@ class PIDAutoTuner:
 
     loss = 0
     self.dynamic_system.reset()
-    for index, desired_state in enumerate(desired_states[0:i]):
+    for index, desired_state in enumerate(desired_states):
       self.dynamic_system.state_transition(desired_state)
       loss += torch.norm(
         torch.tensor(
