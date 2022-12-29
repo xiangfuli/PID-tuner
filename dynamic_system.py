@@ -12,5 +12,10 @@ class DynamicSystem:
   def set_parameters(self, parameters):
     pass
 
+  def set_states(self, states):
+    pass
+
   def reset(self):
     pass
+
+  

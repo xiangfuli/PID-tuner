@@ -63,16 +63,17 @@ class Car(DynamicSystem):
   def state_transition(self, desired_state):
     acceleration, orientation_ddot = self.pid_controller_output(desired_state)
 
-    new_orientation_dot_tensor = self.orientation_dot + orientation_ddot * self.dt
-    new_orientation_tensor = self.orientation + (self.orientation_dot + new_orientation_dot_tensor) / 2 * self.dt
-
-    orientation_cos = torch.cos(new_orientation_tensor)
-    orientation_sin = torch.sin(new_orientation_tensor)
-
-    new_velocity_tensor = self.velocity + acceleration * self.dt
-    new_position_x_tensor = self.position_x + (self.velocity + new_velocity_tensor) / 2 * orientation_cos * self.dt
-    new_position_y_tensor = self.position_y + (self.velocity + new_velocity_tensor) / 2 * orientation_sin * self.dt
     
+
+    orientation_cos = torch.cos(self.orientation)
+    orientation_sin = torch.sin(self.orientation)
+    
+    new_position_x_tensor = self.position_x + self.velocity * orientation_cos * self.dt
+    new_position_y_tensor = self.position_y + self.velocity * orientation_sin * self.dt
+    new_velocity_tensor = self.velocity + acceleration * self.dt
+    new_orientation_tensor = self.orientation + self.orientation_dot * self.dt
+    new_orientation_dot_tensor = self.orientation_dot + orientation_ddot * self.dt
+
     self.position_x = new_position_x_tensor
     self.position_y = new_position_y_tensor
     self.velocity = torch.max(torch.tensor([0.]), torch.min(new_velocity_tensor, self.max_v))
@@ -86,6 +87,9 @@ class Car(DynamicSystem):
       self.velocity,
       self.orientation_dot
     ]
+
+    for state in self.states:
+      state.retain_grad()
   
   def pid_controller_output(self, desired_state):
     x_desired, y_desired, vx_desired, vy_desired, accx_desired, accy_desired, angle_desired, angle_dot_desired, angle_ddot_desired = desired_state
@@ -110,6 +114,9 @@ class Car(DynamicSystem):
       self.input_acc,
       self.input_orientation_ddot
     ]
+
+    acceleration.retain_grad()
+    orientation_ddot.retain_grad()
 
     return acceleration, orientation_ddot
 
@@ -142,6 +149,21 @@ class Car(DynamicSystem):
       self.kv,
       self.kori,
       self.koridot
+    ]
+  
+  def set_states(self, states):
+    self.position_x = torch.tensor(states[0], requires_grad=True)
+    self.position_y = torch.tensor(states[1], requires_grad=True)
+    self.velocity = torch.tensor(states[2], requires_grad=True)
+    self.orientation = torch.tensor(states[3], requires_grad=True)
+    self.orientation_dot = torch.tensor(states[4], requires_grad=True)
+
+    self.states = [
+      self.position_x,
+      self.position_y,
+      self.orientation,
+      self.velocity,
+      self.orientation_dot
     ]
   
   def reset(self):

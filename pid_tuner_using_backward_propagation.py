@@ -9,6 +9,7 @@ from car import Car
 from waypoint import WayPoint
 from trajectory_gen import PolynomialTrajectoryGenerator
 from pid_auto_tuner import PIDAutoTuner
+from traj_printer import TrajPrinter
 
 pid_controller_initial_parameters = [10, 10, 10, 10]
 time_interval = 0.1
@@ -32,7 +33,7 @@ waypoints_set = [[
     WayPoint(2, 2),
     WayPoint(4, 0),
     WayPoint(2, -2),
-    WayPoint(0, 0),
+    WayPoint(0, 0), 
 ],
 [
     WayPoint(0, 0),
@@ -54,10 +55,14 @@ waypoints_set = [[
 ],
 [
     WayPoint(0, 0),
-    WayPoint(4, 2),
+    WayPoint(4, 4),
     WayPoint(8, 0),
+    WayPoint(4, -4),
+    WayPoint(2, 0),
+    WayPoint(4, 2),
+    WayPoint(6, 0),
     WayPoint(4, -2),
-    WayPoint(0, 0),
+    WayPoint(2, 0),
 ],
 [
     WayPoint(0, 0),
@@ -85,7 +90,7 @@ car = Car(
   pid_controller_initial_parameters,
   dt = time_interval
 )
-traj_trainset = trajs[0:1]
+traj_trainset = trajs[4:5]
 # compute the desired states
 car_desired_states_in_trajs = []
 for traj_index, wps in enumerate(traj_trainset):
@@ -99,37 +104,8 @@ for traj_index, wps in enumerate(traj_trainset):
 
 # plot the trajectory by initial parameters
 for traj_index, wps in enumerate(traj_trainset):
-  car_states = []
   car.reset()
-  for car_desired_state in car_desired_states_in_trajs[traj_index]:
-    car.state_transition(car_desired_state)
-    car_states.append(car.states)
-
-  fig, ax = plt.subplots(nrows=1, ncols=4, figsize=(40, 5))
-    
-  xs = []
-  ys = []
-  velocities = []
-  orientations = []
-  orientation_dots = []
-  dts = []
-  norm = plt.Normalize(wps[0].ts, wps[len(wps) - 1].ts)
-  for wp_index, wp in enumerate(wps):
-    xs.append(car_states[wp_index][0].item())
-    ys.append(car_states[wp_index][1].item())
-    orientations.append(car_states[wp_index][2].item())
-
-    velocities.append(car_states[wp_index][3].item())
-    orientation_dots.append(car_states[wp_index][4].item())
-    dts.append(wp_index)
-  ax[0].scatter(xs, ys, c=norm(dts), cmap='viridis', s=size, marker=marker)
-  ax[0].set_title("Trajectory %s: position" % traj_index)
-  ax[1].scatter(dts, velocities, c=norm(dts), cmap='viridis', s=size, marker=marker)
-  ax[1].set_title("Trajectory %s: velocities" % traj_index)
-  ax[2].scatter(dts, orientations, c=norm(dts), cmap='viridis', s=size, marker=marker)
-  ax[2].set_title("Trajectory %s: orientations" % traj_index)
-  ax[3].scatter(dts, orientation_dots, c=norm(dts), cmap='viridis', s=size, marker=marker)
-  ax[3].set_title("Trajectory %s: angular speed" % traj_index)
+  TrajPrinter.print_2d_traj(car, car_desired_states_in_trajs[traj_index], traj_index)
 
 plt.show()
 
@@ -151,7 +127,7 @@ class thread(threading.Thread):
 index = 1
 train_thread = None
 tuner = PIDAutoTuner(car)
-while index < 5:
+while index < 20:
   print("Train iteration times: %d..." % index)
   for traj_index, wps in enumerate(traj_trainset):
     # PID auto tuner
@@ -194,33 +170,6 @@ car_after_optimized = Car(
 for traj_index, wps in enumerate(traj_trainset):
   car_states = []
   car_after_optimized.reset()
-  for car_desired_state in car_desired_states_in_trajs[traj_index]:
-    car_after_optimized.state_transition(car_desired_state)
-    car_states.append(car_after_optimized.states)
+  TrajPrinter.print_2d_traj(car_after_optimized, car_desired_states_in_trajs[traj_index], traj_index)
 
-  fig, ax = plt.subplots(nrows=1, ncols=4, figsize=(40, 5))
-    
-  xs = []
-  ys = []
-  velocities = []
-  orientations = []
-  orientation_dots = []
-  dts = []
-  norm = plt.Normalize(wps[0].ts, wps[len(wps) - 1].ts)
-  for wp_index, wp in enumerate(wps):
-    xs.append(car_states[wp_index][0].item())
-    ys.append(car_states[wp_index][1].item())
-    orientations.append(car_states[wp_index][2].item())
-    velocities.append(car_states[wp_index][3].item())
-    orientation_dots.append(car_states[wp_index][4].item())
-    dts.append(wp_index)
-
-  ax[0].scatter(xs, ys, c=norm(dts), cmap='viridis', s=size, marker=marker)
-  ax[0].set_title("Trajectory %s: position" % traj_index)
-  ax[1].scatter(dts, velocities, c=norm(dts), cmap='viridis', s=size, marker=marker)
-  ax[1].set_title("Trajectory %s: velocities" % traj_index)
-  ax[2].scatter(dts, orientations, c=norm(dts), cmap='viridis', s=size, marker=marker)
-  ax[2].set_title("Trajectory %s: orientations" % traj_index)
-  ax[3].scatter(dts, orientation_dots, c=norm(dts), cmap='viridis', s=size, marker=marker)
-  ax[3].set_title("Trajectory %s: angular speed" % traj_index)
 plt.show()
