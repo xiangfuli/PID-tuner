@@ -12,7 +12,7 @@ from pid_auto_tuner_using_sensitivity_propagation import PIDAutoTunerUsingSensit
 from traj_printer import TrajPrinter
 from commons import get_tensor_item
 
-pid_controller_initial_parameters = [20, 10, 7, 5]
+pid_controller_initial_parameters = [10, 10, 10, 10]
 time_interval = 0.1
 
 # plot attribute
@@ -22,21 +22,23 @@ marker='o'
 # trajectory generation
 traj_gen = PolynomialTrajectoryGenerator()
 
-waypoints_set = [[
-    WayPoint(0, 0),
-    WayPoint(1, 1),
-    WayPoint(2, 0),
-    WayPoint(3, -1),
-    WayPoint(4, 0),
-],
-[
+waypoints_set = [
+      [
     WayPoint(0, 0),
     WayPoint(2, 2),
     WayPoint(4, 0),
     WayPoint(2, -2),
     WayPoint(0, 0),
 ],
-[
+  [
+    WayPoint(0, 0),
+    WayPoint(1, 1),
+    WayPoint(2, 0),
+    WayPoint(3, -1),
+    WayPoint(4, 0),
+],
+
+  [
     WayPoint(0, 0),
     WayPoint(2, 4),
     WayPoint(4, 0),
@@ -94,22 +96,34 @@ car = Car(
 
 # compute the desired states
 car_desired_states_in_trajs = []
-for traj_index, wps in enumerate(trajs):
-  car_desired_states = []
-  last_desired_state = (0, 0, 0, 0, 0, 0, 0, 0, 0)
-  car.reset()
-  for wp in wps:
-    car_desired_states.append(car.get_desired_state(wp, last_desired_state))
-    last_desired_state = car_desired_states[-1:][0]
-  car_desired_states_in_trajs.append(car_desired_states)
+for traj_index, wps in enumerate(traj_trainset):
+  car_desired_states_in_trajs.append(traj_gen.get_desired_states_in_2d(wps, time_interval))
 
 train_times = 0
-while train_times < 50:
+new_car = Car(
+  1, 1,
+  [0, 0, 0, 0, 0],
+  pid_controller_initial_parameters,
+  dt = time_interval
+)
+
+while train_times < 48:
   print("Train iteration times: %d" % train_times)
   for traj_index, wps in enumerate(traj_trainset):
-    car.reset()
-    tuner = PIDAutoTunerUsingSensituvityPropagation(car)
-    tuner.train(car_desired_states_in_trajs[traj_index], 0.1)
+    # PID auto tuner
+    new_car = Car(
+      1, 1,
+      [0, 0, 0, 0, 0],
+      [
+        new_car.parameters[0].item(),
+        new_car.parameters[1].item(),
+        new_car.parameters[2].item(),
+        new_car.parameters[3].item()
+      ],
+      dt = time_interval
+    )
+    tuner = PIDAutoTunerUsingSensituvityPropagation(new_car)
+    tuner.train(car_desired_states_in_trajs[traj_index + train_split_index - 1], 0.001)
   train_times += 1
 
 car_after_optimized = Car(
@@ -125,8 +139,6 @@ car_after_optimized = Car(
 )
 
 for traj_index, wps in enumerate(traj_trainset):
-  car_states = []
-  car_after_optimized.reset()
   TrajPrinter.print_2d_traj(car_after_optimized, car_desired_states_in_trajs[traj_index], traj_index)
 
 plt.show()

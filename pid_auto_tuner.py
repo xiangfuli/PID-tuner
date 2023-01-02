@@ -1,7 +1,6 @@
 import torch
 import numpy as np
-from car import get_shortest_path_between_angles
-from commons import get_tensor_item
+from commons import get_tensor_item, get_shortest_path_between_angles
 class PIDAutoTuner:
   def __init__(self, dynamic_system):
     self.states = dynamic_system.states
@@ -30,7 +29,7 @@ class PIDAutoTuner:
         self.des_state_at_k.append(desired_state)
         
       # position and orientation loss
-      px_loss = desired_states[i][0] - self.dynamic_system.states[0]
+      px_loss = self.dynamic_system.states[0] - desired_states[i][0]
       px_loss_square = px_loss ** 2
       px_loss_square.backward(retain_graph=True)
 
@@ -40,7 +39,7 @@ class PIDAutoTuner:
         get_tensor_item(self.dynamic_system.parameters[3].grad)])
       
       # position and orientation loss
-      py_loss = desired_states[i][1] - self.dynamic_system.states[1]
+      py_loss = self.dynamic_system.states[1] - desired_states[i][1]
       py_loss_square = py_loss ** 2
       py_loss_square.backward(retain_graph=True)
 
@@ -63,18 +62,18 @@ class PIDAutoTuner:
       # v_loss_square = v_loss ** 2
       # v_loss_square.backward(retain_graph=True)
 
-      # v_grads.append([self.dynamic_system.parameters[0].grad, \
-      #   self.dynamic_system.parameters[1].grad, \
-      #   torch.tensor([0.]), \
-      #   torch.tensor([0.])])
+      # v_grads.append([get_tensor_item(self.dynamic_system.parameters[0].grad), \
+      #   get_tensor_item(self.dynamic_system.parameters[1].grad), \
+      #   get_tensor_item(self.dynamic_system.parameters[2].grad), \
+      #   get_tensor_item(self.dynamic_system.parameters[1].grad)])
 
       dpxdparam = torch.zeros([4, 1])
       dpydparam = torch.zeros([4, 1])
       doridparam = torch.zeros([4, 1])
-      # dvdparam = torch.zeros([4, 1])
+      dvdparam = torch.zeros([4, 1])
       dpxdparam += torch.tensor(px_grads[0]).reshape([4, 1])
       dpydparam += torch.tensor(py_grads[0]).reshape([4, 1])
-      doridparam += torch.tensor(ori_grads[0]).reshape([4, 1])
+      # doridparam += torch.tensor(ori_grads[0]).reshape([4, 1])
       # dvdparam += torch.tensor(v_grads[0]).reshape([4, 1])
 
       # gradient of inputs
@@ -93,20 +92,20 @@ class PIDAutoTuner:
       daccdparam = torch.zeros([4, 1])
       daccdparam += torch.tensor(acc_grad[0]).reshape([4, 1])
 
-      ori_ddot = self.dynamic_system.inputs[1]
-      ori_ddot_loss = ori_ddot ** 2
-      ori_ddot_loss.backward(retain_graph=True)
-      ori_ddot_grad = []
-      ori_ddot_grad.append(
-        [
-          get_tensor_item(self.dynamic_system.parameters[0].grad),
-          get_tensor_item(self.dynamic_system.parameters[1].grad),
-          get_tensor_item(self.dynamic_system.parameters[2].grad),
-          get_tensor_item(self.dynamic_system.parameters[3].grad)
-        ]
-      )
-      doriddotdparam = torch.zeros([4, 1])
-      doriddotdparam += torch.tensor(ori_ddot_grad[0]).reshape([4, 1])
+      # ori_ddot = self.dynamic_system.inputs[1]
+      # ori_ddot_loss = ori_ddot ** 2
+      # ori_ddot_loss.backward(retain_graph=True)
+      # ori_ddot_grad = []
+      # ori_ddot_grad.append(
+      #   [
+      #     get_tensor_item(self.dynamic_system.parameters[0].grad),
+      #     get_tensor_item(self.dynamic_system.parameters[1].grad),
+      #     get_tensor_item(self.dynamic_system.parameters[2].grad),
+      #     get_tensor_item(self.dynamic_system.parameters[3].grad)
+      #   ]
+      # )
+      # doriddotdparam = torch.zeros([4, 1])
+      # doriddotdparam += torch.tensor(ori_ddot_grad[0]).reshape([4, 1])
 
       # angleddot = self.dynamic_system.inputs[1]
       # angleddot_loss = angleddot ** 2
@@ -120,16 +119,16 @@ class PIDAutoTuner:
       #   ]
       # )
 
-      grad = dpxdparam + dpydparam # + 0.2 * daccdparam + 0.01 * doriddotdparam  # + doridparam 
+      grad = dpxdparam + dpydparam #+ 0.2*daccdparam #+ 0.01 * doriddotdparam  # + doridparam 
       grad = grad * learning_rate
       min_num = 0.1
-      self.dynamic_system.set_parameters(
+      self.dynamic_system.set_parameters(torch.tensor(
         [
-          max(min_num, self.dynamic_system.parameters[0].item() - grad[0].item()),
-          max(min_num, self.dynamic_system.parameters[1].item() - grad[1].item()),
-          max(min_num, self.dynamic_system.parameters[2].item() - grad[2].item()),
-          max(min_num, self.dynamic_system.parameters[3].item() - grad[3].item()),
-        ]
+          torch.tensor(max(min_num, self.dynamic_system.parameters[0].item() - grad[0].item())),
+          torch.tensor(max(min_num, self.dynamic_system.parameters[1].item() - grad[1].item())),
+          torch.tensor(max(min_num, self.dynamic_system.parameters[2].item() - grad[2].item())),
+          torch.tensor(max(min_num, self.dynamic_system.parameters[3].item() - grad[3].item())),
+        ])
       )
 
     loss = 0

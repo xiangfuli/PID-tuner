@@ -56,4 +56,16 @@ def rotation_matrix_2_quaternion(R):
     qz = 0.25 * S
 
   q = torch.tensor([[qw,qx,qy,qz]]).reshape([4,1])
-  q = q*(qw/torch.abs(qw));
+  q = q*(qw/torch.abs(qw))
+
+def get_shortest_path_between_angles(original_ori, des_ori):
+  e_ori = des_ori - original_ori
+  if abs(e_ori) > torch.pi:
+    if des_ori > original_ori:
+      e_ori = - (original_ori + 2 * torch.pi - des_ori)
+    else:
+      e_ori = des_ori + 2 * torch.pi - original_ori
+  return e_ori
+
+def get_desired_angular_speed(original_ori, des_ori, dt):
+  return get_shortest_path_between_angles(original_ori, des_ori) / dt

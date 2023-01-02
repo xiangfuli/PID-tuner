@@ -11,8 +11,8 @@ from trajectory_gen import PolynomialTrajectoryGenerator
 from pid_auto_tuner import PIDAutoTuner
 from traj_printer import TrajPrinter
 
-pid_controller_initial_parameters = [10, 10, 10, 10]
-time_interval = 0.1
+pid_controller_initial_parameters = [20, 10, 10, 10]
+time_interval = 0.2
 
 # plot attribute
 size = 4
@@ -90,17 +90,12 @@ car = Car(
   pid_controller_initial_parameters,
   dt = time_interval
 )
-traj_trainset = trajs[4:5]
+
+traj_trainset = trajs[0:1]
 # compute the desired states
 car_desired_states_in_trajs = []
 for traj_index, wps in enumerate(traj_trainset):
-  car_desired_states = []
-  last_desired_state = (0, 0, 0, 0, 0, 0, 0, 0, 0)
-  car.reset()
-  for wp in wps:
-    car_desired_states.append(car.get_desired_state(wp, last_desired_state))
-    last_desired_state = car_desired_states[-1:][0]
-  car_desired_states_in_trajs.append(car_desired_states)
+  car_desired_states_in_trajs.append(traj_gen.get_desired_states_in_2d(wps, time_interval))
 
 # plot the trajectory by initial parameters
 for traj_index, wps in enumerate(traj_trainset):
@@ -127,7 +122,7 @@ class thread(threading.Thread):
 index = 1
 train_thread = None
 tuner = PIDAutoTuner(car)
-while index < 20:
+while index < 30:
   print("Train iteration times: %d..." % index)
   for traj_index, wps in enumerate(traj_trainset):
     # PID auto tuner

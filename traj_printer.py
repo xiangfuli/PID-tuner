@@ -1,6 +1,7 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import torch
+import math
 
 class TrajPrinter:
   def __init__(self):
@@ -26,11 +27,10 @@ class TrajPrinter:
       xs.append(car_states[index][0].item())
       ys.append(car_states[index][1].item())
       orientations.append(car_states[index][2].item())
-
       velocities.append(car_states[index][3].item())
       orientation_dots.append(car_states[index][4].item())
       dts.append(index)
-    ax[0].scatter(xs, ys, c=norm(dts), cmap='viridis', s=4)
+    ax[0].plot(xs, ys)
     ax[0].set_title("Trajectory %s: position" % traj_index)
     ax[1].plot(dts, velocities)
     ax[1].set_title("Trajectory %s: velocities" % traj_index)
@@ -38,6 +38,21 @@ class TrajPrinter:
     ax[2].set_title("Trajectory %s: orientations" % traj_index)
     ax[3].plot(dts, orientation_dots)
     ax[3].set_title("Trajectory %s: angular speed" % traj_index)
+    xs = []
+    ys = []
+    velocities = []
+    orientations = []
+    orientation_dots = []
+    for desired_state in desired_states:
+      xs.append(desired_state[0])
+      ys.append(desired_state[1])
+      velocities.append(math.sqrt(desired_state[2] ** 2 + desired_state[3] ** 2))
+      orientations.append(desired_state[6])
+      orientation_dots.append(desired_state[7])
+    ax[0].scatter(xs, ys, c='black', s=4)
+    ax[2].plot(dts, orientations, c='black')
+    ax[1].plot(dts, velocities, c='black')
+    ax[3].plot(dts, orientation_dots, c='black')
 
   def plot_3d_trajectory(self, wps):
     xs = []

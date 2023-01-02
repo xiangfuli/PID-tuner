@@ -64,31 +64,31 @@ for wps in quadrotor_trajs:
     last_desired_angle_ddot = angle_ddot
   desired_states_in_trajs.append(desired_states_in_each_traj)
 
-# for desired_states_in_each_traj in desired_states_in_trajs:
-#   positions = []
-#   poses = []
-#   for desired_state in desired_states_in_each_traj:
-#     positions.append(desired_state[0])
-#     poses.append(desired_state[3])
-#   traj_printer.plot_3d_quadrotor_using_torch_tensors(positions, poses)
-
-quadrotor = Quadrotor(init_params_kx = 100, init_params_kv = 50, init_params_kr = 8, init_params_ko = 5)
-quadrotor_states_in_trajs = []
 for desired_states_in_each_traj in desired_states_in_trajs:
-  quadrotor_states_in_each_traj = []
-  for desired_state in desired_states_in_each_traj:
-    f, M = quadrotor.get_controller_output(desired_state[0], desired_state[1], desired_state[2], desired_state[3], desired_state[4], desired_state[5])
-    quadrotor.state_update_in_place(f, M, dt)
-    quadrotor_states_in_each_traj.append((quadrotor.position, quadrotor.pose))
-  quadrotor_states_in_trajs.append(quadrotor_states_in_each_traj)
-
-# # plot 3d trajectory
-for index, traj in enumerate(quadrotor_trajs):
   positions = []
   poses = []
-  for state in quadrotor_states_in_trajs[index]:
-    positions.append(state[0])
-    poses.append(state[1])
+  for desired_state in desired_states_in_each_traj:
+    positions.append(desired_state[0])
+    poses.append(desired_state[3])
   traj_printer.plot_3d_quadrotor_using_torch_tensors(positions, poses)
+
+# quadrotor = Quadrotor(init_params_kx = 100, init_params_kv = 50, init_params_kr = 8, init_params_ko = 5)
+# quadrotor_states_in_trajs = []
+# for desired_states_in_each_traj in desired_states_in_trajs:
+#   quadrotor_states_in_each_traj = []
+#   for desired_state in desired_states_in_each_traj:
+#     f, M = quadrotor.get_controller_output(desired_state[0], desired_state[1], desired_state[2], desired_state[3], desired_state[4], desired_state[5])
+#     quadrotor.state_update_in_place(f, M, dt)
+#     quadrotor_states_in_each_traj.append((quadrotor.position, quadrotor.pose))
+#   quadrotor_states_in_trajs.append(quadrotor_states_in_each_traj)
+
+# # # plot 3d trajectory
+# for index, traj in enumerate(quadrotor_trajs):
+#   positions = []
+#   poses = []
+#   for state in quadrotor_states_in_trajs[index]:
+#     positions.append(state[0])
+#     poses.append(state[1])
+#   traj_printer.plot_3d_quadrotor_using_torch_tensors(positions, poses)
 
   

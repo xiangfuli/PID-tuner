@@ -10,6 +10,6 @@ a_skew = torch.tensor(
   ]
 )
 b = torch.mm(a_skew, a)
-b[0].backward()
+b.backward()
 
 print(a.grad)

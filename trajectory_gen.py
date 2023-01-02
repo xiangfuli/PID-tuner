@@ -1,6 +1,7 @@
 from waypoint import WayPoint
 import numpy as np
-
+import torch
+from commons import get_tensor_item, get_shortest_path_between_angles
 class PolynomialTrajectoryGenerator:
   def __init__(self):
     return
@@ -129,3 +130,33 @@ class PolynomialTrajectoryGenerator:
         A[row_index, poly_order * traj_index + i] = (np.math.factorial(i) / np.math.factorial(i - derivative_order)) if (i - derivative_order) == 0 else 0
       else:
         A[row_index, poly_order * traj_index + i] = 0 if (i - derivative_order) < 0 else (np.math.factorial(i) / np.math.factorial(i - derivative_order))
+
+  def get_desired_states_in_2d(self, traj, dt):
+    car_desired_states = []
+    last_desired_state = (0, 0, 0, 0, 0, 0, 0, 0, 0)
+    
+    for wp in traj:
+      last_desired_orientation, \
+      last_desired_orientation_dot, \
+      last_desired_orientation_ddot = last_desired_state[-3:]
+      current_orientation = torch.atan2(torch.tensor(wp.vel.y), torch.tensor(wp.vel.x)).item()
+      last_desired_orientation_remaindar = torch.atan2(torch.sin(torch.tensor(last_desired_orientation)), torch.cos(torch.tensor(last_desired_orientation))).item()
+      delta_angle = get_shortest_path_between_angles(last_desired_orientation_remaindar, current_orientation)
+      current_orientation = last_desired_orientation + delta_angle
+      current_ori_dot = (current_orientation - last_desired_orientation) / dt
+       
+      car_desired_states.append(
+        (wp.position.x, \
+              wp.position.y, \
+              wp.vel.x, \
+              wp.vel.y, \
+              wp.acc.x, \
+              wp.acc.y, \
+              current_orientation, \
+              current_ori_dot, \
+              (current_ori_dot - last_desired_orientation_dot) / dt))
+      last_desired_state = car_desired_states[-1:][0]
+    return car_desired_states
+
+  def get_desired_states_in_3d(self):
+    pass

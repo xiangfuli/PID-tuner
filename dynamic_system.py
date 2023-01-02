@@ -6,6 +6,12 @@ class DynamicSystem:
     
     return
   
+  def pid_controller_output(self, desired_state):
+    pass
+
+  def state_update(self, inputs):
+    pass
+  
   def state_transition(self, desired_state):
     pass
 
@@ -16,6 +22,9 @@ class DynamicSystem:
     pass
 
   def reset(self):
+    pass
+
+  def reinit_states_and_params(self):
     pass
 
   
