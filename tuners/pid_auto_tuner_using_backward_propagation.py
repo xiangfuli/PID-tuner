@@ -1,7 +1,7 @@
 import torch
 import numpy as np
-from commons import get_tensor_item, get_shortest_path_between_angles
-class PIDAutoTuner:
+from utils.commons import get_tensor_item, get_shortest_path_between_angles
+class PIDAutoTunerUsingBackwardPropagation:
   def __init__(self, dynamic_system):
     self.states = dynamic_system.states
     self.parameters = dynamic_system.parameters

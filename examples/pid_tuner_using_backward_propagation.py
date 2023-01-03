@@ -4,12 +4,14 @@ from mpl_toolkits import mplot3d
 import numpy as np
 import threading
 import time
+import sys
+sys.path.append(".")
 
-from car import Car
-from waypoint import WayPoint
-from trajectory_gen import PolynomialTrajectoryGenerator
-from pid_auto_tuner import PIDAutoTuner
-from traj_printer import TrajPrinter
+from models.car import Car
+from utils.waypoint import WayPoint
+from utils.trajectory_gen import PolynomialTrajectoryGenerator
+from tuners.pid_auto_tuner_using_backward_propagation import PIDAutoTunerUsingBackwardPropagation
+from utils.traj_printer import TrajPrinter
 
 pid_controller_initial_parameters = [20, 10, 10, 10]
 time_interval = 0.2
@@ -121,7 +123,7 @@ class thread(threading.Thread):
 
 index = 1
 train_thread = None
-tuner = PIDAutoTuner(car)
+tuner = PIDAutoTunerUsingBackwardPropagation(car)
 while index < 30:
   print("Train iteration times: %d..." % index)
   for traj_index, wps in enumerate(traj_trainset):
@@ -137,7 +139,7 @@ while index < 30:
       ],
       dt = time_interval
     )
-    tuner = PIDAutoTuner(new_car)
+    tuner = PIDAutoTunerUsingBackwardPropagation(new_car)
     car_desired_states = car_desired_states_in_trajs[traj_index]
     train_thread = thread(1, "Tuner", tuner, car_desired_states,  0.1)
     train_thread.start()

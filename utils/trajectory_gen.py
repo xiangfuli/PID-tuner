@@ -1,7 +1,7 @@
-from waypoint import WayPoint
+from utils.waypoint import WayPoint
 import numpy as np
 import torch
-from commons import get_tensor_item, get_shortest_path_between_angles
+from utils.commons import get_tensor_item, get_shortest_path_between_angles
 class PolynomialTrajectoryGenerator:
   def __init__(self):
     return

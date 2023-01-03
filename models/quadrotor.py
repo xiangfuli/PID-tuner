@@ -1,6 +1,6 @@
 import torch
 
-from commons import hat, vee
+from utils.commons import hat, vee
 
 g = 9.81
 e3 = torch.tensor([0., 0., 1.]).reshape([3, 1]).float()

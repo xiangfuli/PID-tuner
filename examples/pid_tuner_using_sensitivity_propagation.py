@@ -4,13 +4,15 @@ from mpl_toolkits import mplot3d
 import numpy as np
 import threading
 import time
+import sys
+sys.path.append(".")
 
-from car import Car
-from waypoint import WayPoint
-from trajectory_gen import PolynomialTrajectoryGenerator
-from pid_auto_tuner_using_sensitivity_propagation import PIDAutoTunerUsingSensituvityPropagation
-from traj_printer import TrajPrinter
-from commons import get_tensor_item
+from models.car import Car
+from utils.waypoint import WayPoint
+from utils.trajectory_gen import PolynomialTrajectoryGenerator
+from tuners.pid_auto_tuner_using_sensitivity_propagation import PIDAutoTunerUsingSensituvityPropagation
+from utils.traj_printer import TrajPrinter
+from utils.commons import get_tensor_item
 
 pid_controller_initial_parameters = [10, 10, 10, 10]
 time_interval = 0.1

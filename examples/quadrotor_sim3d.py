@@ -1,10 +1,12 @@
 import torch
+import sys
+sys.path.append(".")
 
-from trajectory_gen import PolynomialTrajectoryGenerator
-from waypoint import WayPoint
-from traj_printer import TrajPrinter
-from commons import hat, vee
-from quadrotor import Quadrotor
+from utils.trajectory_gen import PolynomialTrajectoryGenerator
+from utils.waypoint import WayPoint
+from utils.traj_printer import TrajPrinter
+from utils.commons import hat, vee
+from models.quadrotor import Quadrotor
 
 dt = 0.01
 g = 9.81

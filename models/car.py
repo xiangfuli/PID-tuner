@@ -1,8 +1,8 @@
-from dynamic_system import DynamicSystem
+from models.dynamic_system import DynamicSystem
 import torch
 import math
 
-from commons import get_tensor_item, get_shortest_path_between_angles, get_desired_angular_speed
+from utils.commons import get_tensor_item, get_shortest_path_between_angles, get_desired_angular_speed
 
 class Car(DynamicSystem):
   def __init__(self, mass, inertial, initial_state, initial_parameters, dt):

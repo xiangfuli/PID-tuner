@@ -1,4 +1,4 @@
-from vector import Vector3d
+from utils.vector import Vector3d
 
 class WayPoint:
   def __init__(self, px, py, pz=0, timestamp=0):
