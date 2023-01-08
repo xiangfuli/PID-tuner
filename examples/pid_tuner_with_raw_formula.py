@@ -14,7 +14,8 @@ use_circle_traj = True
 used_traj_index = 4
 
 # tuner parameters
-pid_controller_initial_parameters = torch.tensor([5, 5, 5, 5]).reshape([4, 1])
+pid_controller_initial_parameters = torch.tensor([5., 5., 5., 5.]).reshape([4, 1])
+sysrem_initial_states = torch.tensor([0., 0., 0., 0., 0.]).reshape([5, 1])
 time_interval = 0.1
 learning_rate = 0.5
 
@@ -84,8 +85,6 @@ else:
   
 car = Car(
   1, 1,
-  torch.tensor([0, 0, 0, 0, 0]).reshape([5, 1]),
-  pid_controller_initial_parameters,
   dt = time_interval
 )
 
@@ -93,16 +92,14 @@ tuner = DubinCarTunerWithRawFormula(car)
 
 iteration_times = 0
 while iteration_times <= 200:
-  car.reset()
-  tuner.train(desired_waypoints, time_interval, learning_rate)
+  pid_controller_initial_parameters = tuner.train(desired_waypoints, sysrem_initial_states, pid_controller_initial_parameters, time_interval, learning_rate)
+  print("Updated parameters: %s" % torch.t(pid_controller_initial_parameters))
   iteration_times += 1
 
 car_after_optimized = Car(
   1, 1,
-  torch.tensor([0, 0, 0, 0, 0]).reshape([5, 1]),
-  tuner.dynamic_system.parameters,
   dt = time_interval
 )
-TrajPrinter.print_2d_traj(car_after_optimized, desired_waypoints, 1)
+TrajPrinter.print_2d_traj(car_after_optimized, desired_waypoints, sysrem_initial_states, pid_controller_initial_parameters, 1)
 
 plt.show()

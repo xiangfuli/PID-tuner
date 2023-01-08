@@ -36,11 +36,15 @@ class TrajPrinter:
     ax[3].set_title("Trajectory %s: angular speed" % traj_index)
   
   @staticmethod
-  def print_2d_traj(dynamic_system, desired_states, traj_index):
+  def print_2d_traj(dynamic_system, desired_states, initial_states, parameters, traj_index):
     car_states = []
+    states = torch.clone(initial_states)
     for car_desired_state in desired_states:
-      dynamic_system.set_states(dynamic_system.state_transition(car_desired_state))
-      car_states.append(dynamic_system.states)
+      dynamic_system.set_desired_state(car_desired_state)
+      inputs = dynamic_system.h(states, parameters)
+      xkp1_states = dynamic_system.f(states, inputs)
+      car_states.append(xkp1_states)
+      states = xkp1_states
 
     fig, ax = plt.subplots(nrows=1, ncols=4, figsize=(40, 5))
       

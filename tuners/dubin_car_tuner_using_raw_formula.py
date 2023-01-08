@@ -5,19 +5,22 @@ class DubinCarTunerWithRawFormula:
   def __init__(self, dynamic_system):
     self.dynamic_system = dynamic_system
   
-  def train(self, desired_states, dt, learning_rate):
+  def train(self, desired_states, initial_states, parameters, dt, learning_rate):
     dxdparam_gradients = []
     states_at_k = []
     dxdparam_gradients.append(torch.zeros([5, 4]).double())
-    states_at_k.append(self.dynamic_system.states)
+    states = torch.clone(initial_states)
+    states_at_k.append(states)
     for index, desired_state in enumerate(desired_states[1:]):
       x_desired, y_desired, vx_desired, vy_desired, accx_desired, accy_desired, angle_desired, angle_dot_desired, angle_ddot_desired = desired_state
-      xkp1_states = self.dynamic_system.state_transition(desired_state)
-      self.dynamic_system.set_states(xkp1_states)
+      self.dynamic_system.set_desired_state(desired_state)
+      inputs = self.dynamic_system.h(states, parameters)
+      xkp1_states = self.dynamic_system.f(states, inputs)
       states_at_k.append(xkp1_states)
+      states = xkp1_states
 
       px, py, theta, v, w = xkp1_states
-      kp, kv, kori, kw = self.dynamic_system.parameters
+      kp, kv, kori, kw = parameters
       cos = math.cos(theta)
       sin = math.sin(theta)
 
@@ -72,7 +75,7 @@ class DubinCarTunerWithRawFormula:
     state_chooser[2, 2] = 0.
     state_chooser[3, 3] = 0.
     state_chooser[4, 4] = 0.
-    gradient_sum = torch.zeros([1, 4]).double()
+    gradient_sum = torch.zeros([4, 1]).double()
     for index in range(0, len(desired_states)):
       px, py, theta, v, w = states_at_k[index]
       x_desired, y_desired, vx_desired, vy_desired, accx_desired, accy_desired, angle_desired, angle_dot_desired, angle_ddot_desired = desired_states[index]
@@ -80,37 +83,35 @@ class DubinCarTunerWithRawFormula:
       state_error = states_at_k[index] - torch.tensor([
         x_desired, y_desired, angle_desired, math.sqrt(vx_desired ** 2 + vy_desired ** 2), angle_dot_desired
       ]).reshape(5, 1)
-      state_error = state_error.reshape([1, 5])
+      state_error = state_error.reshape([1, 5]).double()
       state_error = torch.mm(state_error, state_chooser)
-      gradient_sum += 2 * torch.mm(state_error, dxdparam_gradients[index])
+      gradient_sum += 2 * torch.mm(state_error, dxdparam_gradients[index]).reshape([4, 1])
     
     gradient_sum = learning_rate * gradient_sum
-    print("Gradient %s" % gradient_sum)
-
-    max_num = 0.01
-    self.dynamic_system.set_parameters(torch.tensor(
-      [
-        max(max_num, self.dynamic_system.parameters[0].item() - gradient_sum[0][0].item()),
-        max(max_num, self.dynamic_system.parameters[1].item() - gradient_sum[0][1].item()),
-        max(max_num, self.dynamic_system.parameters[2].item() - gradient_sum[0][2].item()),
-        max(max_num, self.dynamic_system.parameters[3].item() - gradient_sum[0][3].item()),
-      ]).reshape([4, 1])
-    )
-    print("Parameters: %s" % self.dynamic_system.parameters)
+    print("Gradient %s" % torch.t(gradient_sum))
 
     loss = 0
-    self.dynamic_system.reset()
-    for index, desired_state in enumerate(desired_states):
-      states = self.dynamic_system.state_transition(desired_state)
-      self.dynamic_system.set_states(states)
+    states = torch.clone(initial_states)
+    for index, desired_state in enumerate(desired_states[1:]):
+      x_desired, y_desired, vx_desired, vy_desired, accx_desired, accy_desired, angle_desired, angle_dot_desired, angle_ddot_desired = desired_state
+      self.dynamic_system.set_desired_state(desired_state)
+      inputs = self.dynamic_system.h(states, parameters)
+      xkp1_states = self.dynamic_system.f(states, inputs)
+      states_at_k.append(xkp1_states)
+      states = xkp1_states
+
       loss += torch.norm(
         torch.tensor(
           [
-            desired_states[index][0] -self.dynamic_system.states[0],
-            desired_states[index][1] -self.dynamic_system.states[1],
+            desired_state[0] - states[0],
+            desired_state[1] - states[1],
             # get_shortest_path_between_angles(desired_states[index][6], self.dynamic_system.states[2]),
             # desired_states[index][3] -self.dynamic_system.states[3],
           ]
         )
       )
-    print("Loss : %s" % (loss/len(desired_states)))
+    print("Loss : %s" % (loss/(len(desired_states) - 1)))
+
+    max_num = 0.01
+    max_tensor = torch.max(torch.ones([4, 1]) * max_num, parameters - gradient_sum)
+    return max_tensor
