@@ -92,6 +92,7 @@ tuner = DubinCarTunerWithRawFormula(car)
 
 iteration_times = 0
 while iteration_times <= 200:
+  print("Iteration times: %d.........." % iteration_times)
   pid_controller_initial_parameters = tuner.train(desired_waypoints, sysrem_initial_states, pid_controller_initial_parameters, time_interval, learning_rate)
   print("Updated parameters: %s" % torch.t(pid_controller_initial_parameters))
   iteration_times += 1
