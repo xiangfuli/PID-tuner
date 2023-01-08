@@ -160,3 +160,45 @@ class PolynomialTrajectoryGenerator:
 
   def get_desired_states_in_3d(self):
     pass
+
+  ###
+  # generate circular waypoints with constant velocity and angular speed
+  ###
+  def generate_circle_waypoints(self, radius, constant_velocity, dt):
+    perimeter = torch.pi * 2 * radius
+    total_time = perimeter / constant_velocity
+    desired_waypoints = []
+
+    accu_ts = 0
+    while accu_ts < total_time:
+      theta = accu_ts / total_time * 2 * torch.pi
+      theta_tensor = torch.tensor(theta)
+      half_pi_tensor = torch.tensor(0.5 * torch.pi)
+      wp = WayPoint(
+        radius * torch.cos(theta_tensor - half_pi_tensor),
+        radius * torch.sin(theta_tensor - half_pi_tensor) + radius,
+        0,
+        accu_ts
+      )
+      wp.vel.x = torch.cos(torch.tensor(theta)) * constant_velocity
+      wp.vel.y = torch.sin(torch.tensor(theta)) * constant_velocity
+      wp.vel.z = 0
+      wp.acc.x = 0
+      wp.acc.y = 0
+      wp.acc.z = 0
+
+      desired_waypoints.append((
+        wp.position.x,
+        wp.position.y,
+        wp.vel.x,
+        wp.vel.y,
+        wp.acc.x,
+        wp.acc.y,
+        theta,
+        2 * torch.pi / total_time,
+        0
+      ))
+
+      accu_ts += dt
+    
+    return desired_waypoints

@@ -8,6 +8,34 @@ class TrajPrinter:
     pass
 
   @staticmethod
+  def plot_2d_desired_waypoints(desired_waypoints):
+    traj_index = 1
+    fig, ax = plt.subplots(nrows=1, ncols=4, figsize=(40, 5))
+      
+    xs = []
+    ys = []
+    velocities = []
+    orientations = []
+    orientation_dots = []
+    dts = []
+    norm = plt.Normalize(0, len(desired_waypoints))
+    for index in range(0, len(desired_waypoints)):
+      xs.append(desired_waypoints[index][0])
+      ys.append(desired_waypoints[index][1])
+      orientations.append(desired_waypoints[index][6])
+      # velocities.append(desired_waypoints[index][3].item())
+      orientation_dots.append(desired_waypoints[index][7])
+      dts.append(index)
+    ax[0].plot(xs, ys)
+    ax[0].set_title("Trajectory %s: position" % traj_index)
+    # ax[1].plot(dts, velocities)
+    # ax[1].set_title("Trajectory %s: velocities" % traj_index)
+    ax[2].plot(dts, orientations)
+    ax[2].set_title("Trajectory %s: orientations" % traj_index)
+    ax[3].plot(dts, orientation_dots)
+    ax[3].set_title("Trajectory %s: angular speed" % traj_index)
+  
+  @staticmethod
   def print_2d_traj(dynamic_system, desired_states, traj_index):
     car_states = []
     for car_desired_state in desired_states:

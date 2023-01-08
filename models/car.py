@@ -68,10 +68,10 @@ class Car(DynamicSystem):
 
     self.position_x = new_position_x_tensor
     self.position_y = new_position_y_tensor
-    self.velocity = torch.max(torch.tensor([0.]), new_velocity_tensor)
+    # self.velocity = torch.max(torch.tensor([0.]), new_velocity_tensor)
     # self.orientation = torch.atan2(torch.sin(new_orientation_tensor), torch.cos(new_orientation_tensor))
     # self.orientation_dot = torch.max(-self.max_orientation_dot, torch.min(new_orientation_dot_tensor, self.max_orientation_dot))
-    # self.velocity = new_velocity_tensor
+    self.velocity = new_velocity_tensor
     self.orientation = new_orientation_tensor
     self.orientation_dot = new_orientation_dot_tensor
 
