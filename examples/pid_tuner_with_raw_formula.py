@@ -7,12 +7,14 @@ from tuners.dubin_car_tuner_using_raw_formula import DubinCarTunerWithRawFormula
 from models.car import Car
 from utils.waypoint import WayPoint
 
+import torch
+
 # program parameters
 use_circle_traj = True
 used_traj_index = 4
 
 # tuner parameters
-pid_controller_initial_parameters = [5, 5, 5, 5]
+pid_controller_initial_parameters = torch.tensor([5, 5, 5, 5]).reshape([4, 1])
 time_interval = 0.1
 learning_rate = 0.5
 
@@ -82,7 +84,7 @@ else:
   
 car = Car(
   1, 1,
-  [0, 0, 0, 0, 0],
+  torch.tensor([0, 0, 0, 0, 0]).reshape([5, 1]),
   pid_controller_initial_parameters,
   dt = time_interval
 )
@@ -97,13 +99,8 @@ while iteration_times <= 200:
 
 car_after_optimized = Car(
   1, 1,
-  [0, 0, 0, 0, 0],
-  [
-    tuner.dynamic_system.parameters[0].item(),
-    tuner.dynamic_system.parameters[1].item(),
-    tuner.dynamic_system.parameters[2].item(),
-    tuner.dynamic_system.parameters[3].item()
-  ],
+  torch.tensor([0, 0, 0, 0, 0]).reshape([5, 1]),
+  tuner.dynamic_system.parameters,
   dt = time_interval
 )
 TrajPrinter.print_2d_traj(car_after_optimized, desired_waypoints, 1)

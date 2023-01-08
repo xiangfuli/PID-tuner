@@ -39,7 +39,7 @@ class TrajPrinter:
   def print_2d_traj(dynamic_system, desired_states, traj_index):
     car_states = []
     for car_desired_state in desired_states:
-      dynamic_system.state_transition(car_desired_state)
+      dynamic_system.set_states(dynamic_system.state_transition(car_desired_state))
       car_states.append(dynamic_system.states)
 
     fig, ax = plt.subplots(nrows=1, ncols=4, figsize=(40, 5))

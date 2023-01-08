@@ -12,10 +12,11 @@ class DubinCarTunerWithRawFormula:
     states_at_k.append(self.dynamic_system.states)
     for index, desired_state in enumerate(desired_states[1:]):
       x_desired, y_desired, vx_desired, vy_desired, accx_desired, accy_desired, angle_desired, angle_dot_desired, angle_ddot_desired = desired_state
-      self.dynamic_system.state_transition(desired_state)
-      states_at_k.append(self.dynamic_system.states)
+      xkp1_states = self.dynamic_system.state_transition(desired_state)
+      self.dynamic_system.set_states(xkp1_states)
+      states_at_k.append(xkp1_states)
 
-      px, py, theta, v, w = self.dynamic_system.states
+      px, py, theta, v, w = xkp1_states
       kp, kv, kori, kw = self.dynamic_system.parameters
       cos = math.cos(theta)
       sin = math.sin(theta)
@@ -76,9 +77,10 @@ class DubinCarTunerWithRawFormula:
       px, py, theta, v, w = states_at_k[index]
       x_desired, y_desired, vx_desired, vy_desired, accx_desired, accy_desired, angle_desired, angle_dot_desired, angle_ddot_desired = desired_states[index]
 
-      state_error = torch.tensor(states_at_k[index]) - torch.tensor([
+      state_error = states_at_k[index] - torch.tensor([
         x_desired, y_desired, angle_desired, math.sqrt(vx_desired ** 2 + vy_desired ** 2), angle_dot_desired
-      ]).reshape(1, 5)
+      ]).reshape(5, 1)
+      state_error = state_error.reshape([1, 5])
       state_error = torch.mm(state_error, state_chooser)
       gradient_sum += 2 * torch.mm(state_error, dxdparam_gradients[index])
     
@@ -92,14 +94,15 @@ class DubinCarTunerWithRawFormula:
         max(max_num, self.dynamic_system.parameters[1].item() - gradient_sum[0][1].item()),
         max(max_num, self.dynamic_system.parameters[2].item() - gradient_sum[0][2].item()),
         max(max_num, self.dynamic_system.parameters[3].item() - gradient_sum[0][3].item()),
-      ])
+      ]).reshape([4, 1])
     )
     print("Parameters: %s" % self.dynamic_system.parameters)
 
     loss = 0
     self.dynamic_system.reset()
     for index, desired_state in enumerate(desired_states):
-      self.dynamic_system.state_transition(desired_state)
+      states = self.dynamic_system.state_transition(desired_state)
+      self.dynamic_system.set_states(states)
       loss += torch.norm(
         torch.tensor(
           [
