@@ -16,13 +16,14 @@ class DubinCarTunerWithRawFormula:
       self.dynamic_system.set_desired_state(desired_state)
       inputs = self.dynamic_system.h(states, parameters)
       xkp1_states = self.dynamic_system.f(states, inputs)
-      states_at_k.append(xkp1_states)
-      states = xkp1_states
+      states_at_k.append(torch.t(torch.tensor([xkp1_states])))
+      
 
-      px, py, theta, v, w = xkp1_states
+      px, py, theta, v, w = states
       kp, kv, kori, kw = parameters
       cos = math.cos(theta)
       sin = math.sin(theta)
+      states = xkp1_states
 
       dfdxk = [
         [1, 0, -v * dt * math.sin(theta), math.cos(theta) * dt, 0],
@@ -97,7 +98,6 @@ class DubinCarTunerWithRawFormula:
       self.dynamic_system.set_desired_state(desired_state)
       inputs = self.dynamic_system.h(states, parameters)
       xkp1_states = self.dynamic_system.f(states, inputs)
-      states_at_k.append(xkp1_states)
       states = xkp1_states
 
       loss += torch.norm(

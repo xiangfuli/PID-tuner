@@ -25,22 +25,12 @@ class Car(DynamicSystem):
     new_velocity_tensor = vel + acceleration * self.dt
     new_orientation_dot_tensor = w + orientation_ddot * self.dt
 
-    self.position_x = new_position_x_tensor
-    self.position_y = new_position_y_tensor
-    # self.velocity = torch.max(torch.tensor([0.]), new_velocity_tensor)
-    # self.orientation = torch.atan2(torch.sin(new_orientation_tensor), torch.cos(new_orientation_tensor))
-    # self.orientation_dot = torch.max(-self.max_orientation_dot, torch.min(new_orientation_dot_tensor, self.max_orientation_dot))
-    self.velocity = new_velocity_tensor
-    self.orientation = new_orientation_tensor
-    self.orientation_dot = new_orientation_dot_tensor
-
-    return torch.tensor([
-      self.position_x,
-      self.position_y,
-      self.orientation,
-      self.velocity,
-      self.orientation_dot
-    ]).reshape([5, 1])
+    return (new_position_x_tensor, \
+      new_position_y_tensor, \
+      new_orientation_tensor, \
+      new_velocity_tensor, \
+      new_orientation_dot_tensor)
+    
   
   def h(self, k_state, parameters):
     x_desired, y_desired, vx_desired, vy_desired, accx_desired, accy_desired, angle_desired, angle_dot_desired, angle_ddot_desired = self.desired_state
@@ -58,7 +48,7 @@ class Car(DynamicSystem):
     err_angle = angle_desired - orientation
     orientation_ddot = kori * err_angle + kw * (angle_dot_desired - w) + angle_ddot_desired
 
-    return torch.tensor([acceleration, orientation_ddot]).reshape([2, 1])
+    return (acceleration, orientation_ddot)
 
   def set_parameters(self, parameters):
     self.initial_parameters = parameters

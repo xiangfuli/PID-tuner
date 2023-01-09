@@ -1,289 +1,90 @@
 import torch
 import numpy as np
 from utils.commons import get_tensor_item
+from torch.autograd.functional import jacobian
+import math
 class PIDAutoTunerUsingSensituvityPropagation:
   def __init__(self, dynamic_system):
-    self.states = dynamic_system.states
-    self.parameters = dynamic_system.parameters
     self.dynamic_system = dynamic_system
+  
+  def train(self, desired_states, initial_states, parameters, dt, learning_rate):
+    dxdparam_gradients = []
+    states_at_k = []
+    dxdparam_gradients.append(torch.zeros([5, 4]).double())
+    states = torch.clone(initial_states)
+    states_at_k.append(states)
+    for index, desired_state in enumerate(desired_states[1:]):
+      self.dynamic_system.set_desired_state(desired_state)
+      inputs = self.dynamic_system.h(states, parameters)
+      xkp1_states = self.dynamic_system.f(states, inputs)
 
-    self.state_at_k = []
-    self.input_at_k = []
-    self.des_state_at_k = []
-    self.parameter_gradients_at_k = []
-    self.state_loss_at_k = []
-    self.state_gradient_at_k = []
-    self.input_gradient_at_k = []
+      inputs_var_number = len(inputs)
+      states_var_number = len(states)
 
-  def train(self, desired_states, learning_rate):
-    self.state_gradient_at_k = []
-    self.input_gradient_at_k = []
-    self.state_at_k.append(self.dynamic_system.states)
-    self.state_gradient_at_k.append(torch.zeros([5, 4]))
-    for index, desired_state in enumerate(desired_states):
-      self.dynamic_system.reinit_states_and_params()
-      k_states = self.dynamic_system.states
-      self.dynamic_system.state_transition(desired_state)
-      kp1_states = self.dynamic_system.states
-      dxkp1dxk_all_k_states_grads = []
-      dxkp1dparam_all_params_grads = []
-      dxkp1duk_all_uk_grads = []
-      for kp1_state in kp1_states:
-        # dxkp1dxk: 5 by 5 matrix
-        dxkp1dxk_single_k_state_grad = []
-        dxkp1duk_single_uk_grads = []
-        dxkp1dparam_single_params_grads = []
-        for input in self.dynamic_system.inputs:
-          input.grad = None
-        for param in self.dynamic_system.parameters:
-          param.grad = None
-        for k_state in k_states:
-          k_state.grad = None
-        
-        kp1_state.backward(retain_graph = True)
-        for k_state in k_states:
-          dxkp1dxk_single_k_state_grad.append(
-            get_tensor_item(k_state.grad)
-          )
-        for input in self.dynamic_system.inputs:
-          dxkp1duk_single_uk_grads.append(
-            get_tensor_item(input.grad)
-          )
-        for param in self.dynamic_system.parameters:
-          dxkp1dparam_single_params_grads.append(
-            get_tensor_item(param.grad)
-          )
-        
-        dxkp1dxk_all_k_states_grads.append(dxkp1dxk_single_k_state_grad)
-        dxkp1duk_all_uk_grads.append(dxkp1duk_single_uk_grads)
-        dxkp1dparam_all_params_grads.append(dxkp1dparam_single_params_grads)
+      states_at_k.append(torch.t(torch.tensor([xkp1_states])))
 
-      dukdxk_all_uk_grads = []
-      # dukdxk: 2 by 5 matrix
-      dukdparam_all_params_grads = []
-      # dukdparam_all_params_grads : 2 by 4 matrix
-      for input in self.dynamic_system.inputs:
-        dukdxk_single_uk_grads = []
-        dukdparam_single_params_grads = []
-        for k_state in k_states:
-          k_state.grad = None
-        for parameter in self.dynamic_system.parameters:
-          parameter.grad = None
-        input.backward(retain_graph=True)
-        for k_state in k_states:
-          dukdxk_single_uk_grads.append(
-            get_tensor_item(k_state.grad)
-          )
-        for parameter in self.dynamic_system.parameters:
-          dukdparam_single_params_grads.append(
-            get_tensor_item(parameter.grad)
-          )
-        dukdxk_all_uk_grads.append(dukdxk_single_uk_grads)
-        dukdparam_all_params_grads.append(dukdparam_single_params_grads)
-        
-      dxkp1dxk_all_k_states_grads_tensor = torch.tensor(dxkp1dxk_all_k_states_grads)
-      dxkp1duk_all_uk_grads_tensor = torch.tensor(dxkp1duk_all_uk_grads)
-      dukdxk_all_uk_grads_tensor = torch.tensor(dukdxk_all_uk_grads)
-      dukdparam_all_params_grads_tensor = torch.tensor(dukdparam_all_params_grads)
+      dh_gradient = jacobian(self.dynamic_system.h, (states, parameters))
+      df_gradient = jacobian(self.dynamic_system.f, (states, torch.tensor([inputs]).reshape([inputs_var_number, 1])))
 
-      # print(dxkp1duk_all_uk_grads_tensor)
-      # print(dukdxk_all_uk_grads_tensor) # 这个好像有点大
-      # print(dukdparam_all_params_grads_tensor)
-      # print(torch.mm(dxkp1duk_all_uk_grads_tensor, dukdparam_all_params_grads_tensor))
-      # print(dxkp1dparam_all_params_grads_tensor)
-      # print(self.state_gradient_at_k[index])
-      # print(torch.mm(dxkp1duk_all_uk_grads_tensor, dukdxk_all_uk_grads_tensor))
-      self.state_gradient_at_k.append(
-        torch.mm(dxkp1dxk_all_k_states_grads_tensor + torch.mm(dxkp1duk_all_uk_grads_tensor, dukdxk_all_uk_grads_tensor), self.state_gradient_at_k[index])\
-           + torch.mm(dxkp1duk_all_uk_grads_tensor, dukdparam_all_params_grads_tensor)
-      )
-      self.input_gradient_at_k.append(
-        torch.mm(dukdxk_all_uk_grads_tensor, self.state_gradient_at_k[index]) + dukdparam_all_params_grads_tensor
+      states = torch.tensor(xkp1_states).reshape([5, 1])
+
+      dhdxk_tensor = torch.tensor([], dtype=torch.float64)
+      dhdparam_tensor = torch.tensor([], dtype=torch.float64)
+      for input_index in range(inputs_var_number):
+        dhdxk_tensor = torch.cat([dhdxk_tensor, torch.t(dh_gradient[input_index][0][0])], dim=0)
+        dhdparam_tensor = torch.cat([dhdparam_tensor, torch.t(dh_gradient[input_index][1][0])], dim=0)
+      
+      dfdxk_tensor = torch.tensor([], dtype=torch.float64)
+      dfduk_tensor = torch.tensor([], dtype=torch.float64)
+      for state_index in range(states_var_number):
+        dfdxk_tensor = torch.cat([dfdxk_tensor, torch.t(df_gradient[state_index][0][0])], dim=0)
+        dfduk_tensor = torch.cat([dfduk_tensor, torch.t(df_gradient[state_index][1][0])], dim=0)
+
+      dxdparam_gradients.append(
+        torch.mm(dfdxk_tensor + torch.mm(dfduk_tensor, dhdxk_tensor), dxdparam_gradients[index]) + torch.mm(dfduk_tensor, dhdparam_tensor)
       )
 
-      self.input_at_k.append(self.dynamic_system.inputs)
-      self.state_at_k.append(self.dynamic_system.states)
+    # accumulate the gradients
+    state_chooser = torch.eye(5).double()
+    state_chooser[2, 2] = 0.
+    state_chooser[3, 3] = 0.
+    state_chooser[4, 4] = 0.
+    gradient_sum = torch.zeros([4, 1]).double()
+    for index in range(0, len(desired_states[1:])):
+      px, py, theta, v, w = states_at_k[index]
+      x_desired, y_desired, vx_desired, vy_desired, accx_desired, accy_desired, angle_desired, angle_dot_desired, angle_ddot_desired = desired_states[index]
 
-    loss_grad = torch.zeros([1, 4])
-    for index, desired_state in enumerate(desired_states):
-      desired_state_tensor = torch.tensor([[desired_state[0]],[desired_state[1]]])
-      state_tensor = torch.tensor(
-        [
-          [self.state_at_k[index][0]],
-          [self.state_at_k[index][1]]
-        ]
-      )
-      self.state_gradient_at_k[index] = self.state_gradient_at_k[index].double()
-      # print(desired_state_tensor)
-      # print(state_tensor)
-      # print(self.state_gradient_at_k[index][0:2].dtype)
-      # print((desired_state_tensor - state_tensor))
-      # print(self.state_gradient_at_k[index][0:2])
-      #print(2 * torch.mm((desired_state_tensor - state_tensor).T, self.state_gradient_at_k[index][0:2]) / len(desired_states))
-
-      loss_grad += 2 * torch.mm((state_tensor - desired_state_tensor).T, self.state_gradient_at_k[index][0:2, :])
+      state_error = states_at_k[index] - torch.tensor([
+        x_desired, y_desired, angle_desired, math.sqrt(vx_desired ** 2 + vy_desired ** 2), angle_dot_desired
+      ]).reshape(5, 1)
+      state_error = state_error.reshape([1, 5]).double()
+      state_error = torch.mm(state_error, state_chooser)
+      gradient_sum += 2 * torch.mm(state_error, dxdparam_gradients[index]).reshape([4, 1])
     
-    # loss_grad /= len(desired_states)
-    loss_grad = loss_grad * learning_rate
-    print(loss_grad)
-    min_num = 0.1
-    self.dynamic_system.set_parameters(
-      [
-        torch.tensor(max(min_num, self.dynamic_system.parameters[0].item() - loss_grad[0][0].item())),
-        torch.tensor(max(min_num, self.dynamic_system.parameters[1].item() - loss_grad[0][1].item())),
-        torch.tensor(max(min_num, self.dynamic_system.parameters[2].item() - loss_grad[0][2].item())),
-        torch.tensor(max(min_num, self.dynamic_system.parameters[3].item() - loss_grad[0][3].item())),
-      ]
-    )
-    print(self.dynamic_system.parameters)
+    gradient_sum = learning_rate * gradient_sum
+    print("Gradient %s" % torch.t(gradient_sum))
 
     loss = 0
-    self.dynamic_system.reset()
-    for index, desired_state in enumerate(desired_states):
-      self.dynamic_system.state_transition(desired_state)
+    states = torch.clone(initial_states)
+    for index, desired_state in enumerate(desired_states[1:]):
+      x_desired, y_desired, vx_desired, vy_desired, accx_desired, accy_desired, angle_desired, angle_dot_desired, angle_ddot_desired = desired_state
+      self.dynamic_system.set_desired_state(desired_state)
+      inputs = self.dynamic_system.h(states, parameters)
+      xkp1_states = self.dynamic_system.f(states, inputs)
+      states = xkp1_states
+
       loss += torch.norm(
         torch.tensor(
           [
-            desired_states[index][0] -self.dynamic_system.states[0],
-            desired_states[index][1] -self.dynamic_system.states[1],
+            desired_state[0] - states[0],
+            desired_state[1] - states[1],
             # get_shortest_path_between_angles(desired_states[index][6], self.dynamic_system.states[2]),
             # desired_states[index][3] -self.dynamic_system.states[3],
           ]
         )
       )
-    print("Loss: %d" % loss)
-    
-  # def train(self, desired_states, learning_rate):
-  #   self.state_gradient_at_k = []
-  #   self.input_gradient_at_k = []
-  #   self.state_at_k.append(self.dynamic_system.states)
-  #   self.state_gradient_at_k.append(torch.zeros([5, 4]).double())
-  #   for index, desired_state in enumerate(desired_states):
-  #     self.dynamic_system.reinit_states_and_params()
-  #     k_states = self.dynamic_system.states
-  #     self.dynamic_system.state_transition(desired_state)
-  #     kp1_states = self.dynamic_system.states
-  #     dxkp1dxk_all_k_states_grads = []
-  #     dxkp1dparam_all_params_grads = []
-  #     dxkp1duk_all_uk_grads = []
-  #     for kp1_state in kp1_states:
-  #       # dxkp1dxk: 5 by 5 matrix
-  #       dxkp1dxk_single_k_state_grad = []
-  #       dxkp1duk_single_uk_grads = []
-  #       dxkp1dparam_single_params_grads = []
-  #       kp1_state.backward(retain_graph = True)
-  #       for k_state in k_states:
-  #         dxkp1dxk_single_k_state_grad.append(
-  #           get_tensor_item(k_state.grad)
-  #         )
-  #       for input in self.dynamic_system.inputs:
-  #         dxkp1duk_single_uk_grads.append(
-  #           get_tensor_item(input.grad)
-  #         )
-  #       for param in self.dynamic_system.parameters:
-  #         dxkp1dparam_single_params_grads.append(
-  #           get_tensor_item(param.grad)
-  #         )
-  #       dxkp1dparam_all_params_grads.append(dxkp1dparam_single_params_grads)
-        
-  #     theta_des = desired_state[6]
-  #     theta = k_states[2]
-  #     v = k_states[3]
-  #     dxkp1dxk_all_k_states_grads = torch.tensor(
-  #       [
-  #         [1., 0., -v * torch.sin(theta), self.dynamic_system.dt * torch.cos(theta), 0.],
-  #         [0., 1., -v * torch.cos(theta), self.dynamic_system.dt * torch.sin(theta), 0.],
-  #         [0., 0., 1., 0., self.dynamic_system.dt],
-  #         [0., 0., 0., 1., 0.],
-  #         [0., 0., 0., 0., 1.]
-  #       ]
-  #     ).double()
-  #     dxkp1duk_all_uk_grads = torch.tensor([[0.0000, 0.0000],
-  #       [0.0000, 0.0000],
-  #       [0.0000, 0.0000],
-  #       [0.0100, 0.0000],
-  #       [0.0000, 0.0100]]).double()
-        
+    print("Loss : %s" % (loss/(len(desired_states) - 1)))
 
-  #     dukdxk_all_uk_grads = []
-  #     # dukdxk: 2 by 5 matrix
-  #     dukdparam_all_params_grads = []
-  #     # dukdparam_all_params_grads : 2 by 4 matrix
-  #     for input in self.dynamic_system.inputs:
-  #       dukdxk_single_uk_grads = []
-  #       dukdparam_single_params_grads = []
-  #       input.backward(retain_graph=True)
-  #       for k_state in k_states:
-  #         dukdxk_single_uk_grads.append(
-  #           get_tensor_item(k_state.grad)
-  #         )
-  #       for parameter in self.dynamic_system.parameters:
-  #         dukdparam_single_params_grads.append(
-  #           get_tensor_item(parameter.grad)
-  #         )
-  #       dukdxk_all_uk_grads.append(dukdxk_single_uk_grads)
-  #       dukdparam_all_params_grads.append(dukdparam_single_params_grads)
-        
-  #     dxkp1dxk_all_k_states_grads_tensor = torch.tensor(dxkp1dxk_all_k_states_grads).double()
-  #     dxkp1duk_all_uk_grads_tensor = torch.tensor(dxkp1duk_all_uk_grads).double()
-  #     dukdxk_all_uk_grads_tensor = torch.tensor(dukdxk_all_uk_grads).double()
-  #     dukdparam_all_params_grads_tensor = torch.tensor(dukdparam_all_params_grads).double()
-  #     dxkp1dparam_all_params_grads_tensor = torch.tensor(dxkp1dparam_all_params_grads).double()
-
-  #     # print(dxkp1duk_all_uk_grads_tensor)
-
-  #     # print(dxkp1duk_all_uk_grads_tensor)
-  #     # print(dukdxk_all_uk_grads_tensor) # 这个好像有点大
-  #     # print(dukdparam_all_params_grads_tensor)
-  #     # print(torch.mm(dxkp1duk_all_uk_grads_tensor, dukdparam_all_params_grads_tensor))
-  #     # print(dxkp1dparam_all_params_grads_tensor)
-  #     # print(self.state_gradient_at_k[index])
-  #     # print(torch.mm(dxkp1duk_all_uk_grads_tensor, dukdxk_all_uk_grads_tensor))
-  #     self.state_gradient_at_k.append(
-  #       torch.mm(dxkp1dxk_all_k_states_grads_tensor + torch.mm(dxkp1duk_all_uk_grads_tensor, dukdxk_all_uk_grads_tensor), self.state_gradient_at_k[index])\
-  #          + torch.mm(dxkp1duk_all_uk_grads_tensor, dukdparam_all_params_grads_tensor)
-  #     )
-  #     self.input_gradient_at_k.append(
-  #       torch.mm(dukdxk_all_uk_grads_tensor, self.state_gradient_at_k[index]) + dukdparam_all_params_grads_tensor
-  #     )
-
-  #     self.input_at_k.append(self.dynamic_system.inputs)
-  #     self.state_at_k.append(self.dynamic_system.states)
-
-  #   loss_grad = torch.zeros([1, 4])
-  #   for index, desired_state in enumerate(desired_states):
-  #     desired_state_tensor = torch.tensor([[desired_state[0]],[desired_state[1]]])
-  #     state_tensor = torch.tensor(
-  #       [
-  #         [self.state_at_k[index][0]],
-  #         [self.state_at_k[index][1]]
-  #       ]
-  #     )
-  #     self.state_gradient_at_k[index] = self.state_gradient_at_k[index].double()
-  #     # print(desired_state_tensor)
-  #     # print(state_tensor)
-  #     # print(self.state_gradient_at_k[index][0:2].dtype)
-  #     # print((desired_state_tensor - state_tensor))
-  #     # print(self.state_gradient_at_k[index][0:2])
-  #     #print(2 * torch.mm((desired_state_tensor - state_tensor).T, self.state_gradient_at_k[index][0:2]) / len(desired_states))
-
-  #     loss_grad += 2 * torch.mm((state_tensor - desired_state_tensor).T, self.state_gradient_at_k[index][0:2, :])
-    
-  #   # loss_grad /= len(desired_states)
-  #   loss_grad = loss_grad * learning_rate
-  #   print(loss_grad)
-  #   min_num = 0.1
-  #   self.dynamic_system.set_parameters(
-  #     [
-  #       torch.tensor(max(min_num, self.dynamic_system.parameters[0].item() - loss_grad[0][0].item())),
-  #       torch.tensor(max(min_num, self.dynamic_system.parameters[1].item() - loss_grad[0][1].item())),
-  #       torch.tensor(max(min_num, self.dynamic_system.parameters[2].item() - loss_grad[0][2].item())),
-  #       torch.tensor(max(min_num, self.dynamic_system.parameters[3].item() - loss_grad[0][3].item())),
-  #     ]
-  #   )
-  #   print(self.dynamic_system.parameters)
-    
-    
-  
-
-      
+    max_num = 0.01
+    max_tensor = torch.max(torch.ones([4, 1]) * max_num, parameters - gradient_sum)
+    return max_tensor

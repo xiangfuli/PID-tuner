@@ -13,8 +13,8 @@ from utils.trajectory_gen import PolynomialTrajectoryGenerator
 from tuners.pid_auto_tuner_using_backward_propagation import PIDAutoTunerUsingBackwardPropagation
 from utils.traj_printer import TrajPrinter
 
-pid_controller_initial_parameters = [20, 10, 10, 10]
-time_interval = 0.2
+pid_controller_initial_parameters = [5, 5, 5, 5]
+time_interval = 0.1
 
 # plot attribute
 size = 4
@@ -22,6 +22,8 @@ marker='o'
 
 # trajectory generation
 traj_gen = PolynomialTrajectoryGenerator()
+
+desired_wayopints = traj_gen.generate_circle_waypoints(1, 1, time_interval)
 
 waypoints_set = [[
     WayPoint(0, 0),
@@ -102,7 +104,7 @@ for traj_index, wps in enumerate(traj_trainset):
 # plot the trajectory by initial parameters
 for traj_index, wps in enumerate(traj_trainset):
   car.reset()
-  TrajPrinter.print_2d_traj(car, car_desired_states_in_trajs[traj_index], traj_index)
+  TrajPrinter.print_2d_traj(car, desired_wayopints, traj_index)
 
 plt.show()
 
@@ -124,7 +126,7 @@ class thread(threading.Thread):
 index = 1
 train_thread = None
 tuner = PIDAutoTunerUsingBackwardPropagation(car)
-while index < 30:
+while index < 10:
   print("Train iteration times: %d..." % index)
   for traj_index, wps in enumerate(traj_trainset):
     # PID auto tuner
@@ -140,7 +142,7 @@ while index < 30:
       dt = time_interval
     )
     tuner = PIDAutoTunerUsingBackwardPropagation(new_car)
-    car_desired_states = car_desired_states_in_trajs[traj_index]
+    car_desired_states = desired_wayopints
     train_thread = thread(1, "Tuner", tuner, car_desired_states,  0.1)
     train_thread.start()
     
@@ -167,6 +169,6 @@ car_after_optimized = Car(
 for traj_index, wps in enumerate(traj_trainset):
   car_states = []
   car_after_optimized.reset()
-  TrajPrinter.print_2d_traj(car_after_optimized, car_desired_states_in_trajs[traj_index], traj_index)
+  TrajPrinter.print_2d_traj(car_after_optimized, desired_wayopints, traj_index)
 
 plt.show()
