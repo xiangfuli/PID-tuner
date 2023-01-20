@@ -56,7 +56,7 @@ class PolynomialTrajectoryGenerator:
     for index in range(1, len(wps)):
       last_wp = wps[index - 1]
       curr_wp = wps[index]
-      start_row_index = (2 + max_deri * 2) * (index - 1);
+      start_row_index = (2 + max_deri * 2) * (index - 1)
       b_pos_x[start_row_index][0] = last_wp.position.x
       b_pos_x[start_row_index + 1][0] = curr_wp.position.x
       b_pos_y[start_row_index][0] = last_wp.position.y
@@ -72,13 +72,14 @@ class PolynomialTrajectoryGenerator:
     traj_wps = []
     accumulated_ts = 0
     curr_traj_index = 1
-    while accumulated_ts < wps[N-1].ts:
+    while accumulated_ts <= wps[N-1].ts:
       last_wp = wps[curr_traj_index - 1]
       curr_wp = wps[curr_traj_index]
 
       wp = WayPoint(0, 0)
       wp.setTime(accumulated_ts)
       t = (accumulated_ts - last_wp.ts) / (curr_wp.ts - last_wp.ts)
+      ot = curr_wp.ts - last_wp.ts
 
       poly_pos_t = []
       poly_vel_t = []
@@ -91,21 +92,18 @@ class PolynomialTrajectoryGenerator:
       wp.position.x = poly_pos_t @ co_x[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0]
       wp.position.y = poly_pos_t @ co_y[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0]
       wp.position.z = poly_pos_t @ co_z[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0]
-      wp.vel.x = poly_vel_t @ co_x[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0]
-      wp.vel.y = poly_vel_t @ co_y[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0]
-      wp.vel.z = poly_vel_t @ co_z[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0]
-      wp.acc.x = poly_acc_t @ co_x[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0]
-      wp.acc.y = poly_acc_t @ co_y[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0]
-      wp.acc.z = poly_acc_t @ co_z[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0]
+      wp.vel.x = poly_vel_t @ co_x[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0] / ot
+      wp.vel.y = poly_vel_t @ co_y[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0] / ot
+      wp.vel.z = poly_vel_t @ co_z[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0] / ot
+      wp.acc.x = poly_acc_t @ co_x[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0] / pow(ot, 2)
+      wp.acc.y = poly_acc_t @ co_y[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0] / pow(ot, 2)
+      wp.acc.z = poly_acc_t @ co_z[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0] / pow(ot, 2)
 
       if accumulated_ts + dt > wps[curr_traj_index].ts:
         curr_traj_index += 1
-
       accumulated_ts += dt
       traj_wps.append(wp)
-
     return traj_wps
-
 
   # traj_index start from 1
   def set_position_constraint(self, A, traj_index, last_wp, curr_wp, poly_order, row_index):
