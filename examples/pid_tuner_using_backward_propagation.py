@@ -13,162 +13,104 @@ from utils.trajectory_gen import PolynomialTrajectoryGenerator
 from tuners.pid_auto_tuner_using_backward_propagation import PIDAutoTunerUsingBackwardPropagation
 from utils.traj_printer import TrajPrinter
 
-pid_controller_initial_parameters = [5, 5, 5, 5]
+import torch
+
+# program parameters
+use_circle_traj = False
+used_traj_index = 0
+
+# tuner parameters
+pid_controller_initial_parameters = torch.tensor([5., 5., 5., 5.], requires_grad=True).reshape([4, 1])
+sysrem_initial_states = torch.tensor([0., 0., 0., 0., 0.], requires_grad=True).reshape([5, 1])
 time_interval = 0.1
+learning_rate = 0.5
 
 # plot attribute
 size = 4
 marker='o'
 
-# trajectory generation
+traj_printer = TrajPrinter()
 traj_gen = PolynomialTrajectoryGenerator()
-
-desired_wayopints = traj_gen.generate_circle_waypoints(1, 1, time_interval)
-
-waypoints_set = [[
-    WayPoint(0, 0),
-    WayPoint(1, 1),
-    WayPoint(2, 0),
-    WayPoint(3, -1),
-    WayPoint(4, 0),
-],
-[
-    WayPoint(0, 0),
-    WayPoint(2, 2),
-    WayPoint(4, 0),
-    WayPoint(2, -2),
-    WayPoint(0, 0), 
-],
-[
-    WayPoint(0, 0),
-    WayPoint(2, 4),
-    WayPoint(4, 0),
-    WayPoint(2, -4),
-    WayPoint(0, 0),
-    WayPoint(-2, 4),
-    WayPoint(-4, 0),
-    WayPoint(-2, -4),
-    WayPoint(0, 0)
-],
-[
-    WayPoint(0, 0),
-    WayPoint(2, 2),
-    WayPoint(4, 0),
-    WayPoint(6, 5),
-    WayPoint(8, 0),
-],
-[
-    WayPoint(0, 0),
-    WayPoint(4, 4),
-    WayPoint(8, 0),
-    WayPoint(4, -4),
-    WayPoint(2, 0),
-    WayPoint(4, 2),
-    WayPoint(6, 0),
-    WayPoint(4, -2),
-    WayPoint(2, 0),
-],
-[
-    WayPoint(0, 0),
-    WayPoint(2, 8),
-    WayPoint(4, 6),
-    WayPoint(2, 4),
-    WayPoint(0, 6),
-    WayPoint(2, 8),
-    WayPoint(10, 6),
-    WayPoint(12, 4),
-    WayPoint(10, 2),
-    WayPoint(8, 4),
-    WayPoint(12, 6),
-    WayPoint(16, 0),
-]]
-
-trajs = []
-for wps in waypoints_set:
-  traj_gen.assign_timestamps_in_waypoints(wps)
-  trajs.append(traj_gen.generate_trajectory(wps, time_interval, 7))
+if use_circle_traj:
+  desired_waypoints = traj_gen.generate_circle_waypoints(1, 1, time_interval)
+else:
+  waypoints_set = [
+    [
+        WayPoint(0, 0),
+        WayPoint(1, 1),
+        WayPoint(2, 0),
+        WayPoint(3, -1),
+        WayPoint(4, 0),
+    ],
+    [
+      WayPoint(0, 0),
+      WayPoint(2, 2),
+      WayPoint(4, 0),
+      WayPoint(2, -2),
+      WayPoint(0, 0),
+    ],
+    [
+      WayPoint(0, 0),
+      WayPoint(2, 4),
+      WayPoint(4, 0),
+      WayPoint(2, -4),
+      WayPoint(0, 0),
+      WayPoint(-2, 4),
+      WayPoint(-4, 0),
+      WayPoint(-2, -4),
+      WayPoint(0, 0)
+    ],
+    [
+      WayPoint(0, 0),
+      WayPoint(2, 2),
+      WayPoint(4, 0),
+      WayPoint(6, 5),
+      WayPoint(8, 0),
+    ],
+    [
+      WayPoint(0, 0),
+      WayPoint(4, 2),
+      WayPoint(8, 0),
+      WayPoint(4, -2),
+      WayPoint(0, 0),
+    ],
+    [
+      WayPoint(0, 0),
+      WayPoint(2, 8),
+      WayPoint(4, 6),
+      WayPoint(2, 4),
+      WayPoint(0, 6),
+      WayPoint(2, 8),
+      WayPoint(10, 6),
+      WayPoint(12, 4),
+      WayPoint(10, 2),
+      WayPoint(8, 4),
+      WayPoint(12, 6),
+      WayPoint(16, 0),
+  ]]
+  middle_wps = waypoints_set[used_traj_index]
+  traj_gen.assign_timestamps_in_waypoints(middle_wps)
+  desired_states = traj_gen.generate_trajectory(middle_wps, time_interval, 7)
+  desired_waypoints = traj_gen.get_desired_states_in_2d(desired_states, time_interval)
+  
 
 car = Car(
   1, 1,
-  [0, 0, 0, 0, 0],
-  pid_controller_initial_parameters,
   dt = time_interval
 )
 
-traj_trainset = trajs[0:1]
-# compute the desired states
-car_desired_states_in_trajs = []
-for traj_index, wps in enumerate(traj_trainset):
-  car_desired_states_in_trajs.append(traj_gen.get_desired_states_in_2d(wps, time_interval))
-
-# plot the trajectory by initial parameters
-for traj_index, wps in enumerate(traj_trainset):
-  car.reset()
-  TrajPrinter.print_2d_traj(car, desired_wayopints, traj_index)
-
-plt.show()
-
-class thread(threading.Thread):
-    def __init__(self, thread_name, thread_ID, tuner, desired_states, learning_rate):
-        threading.Thread.__init__(self)
-        self.thread_name = thread_name
-        self.thread_ID = thread_ID
-        self.tuner = tuner
-        self.desired_states = desired_states
-        self.learning_rate = learning_rate
-        self.finished = False
- 
-        # helper function to execute the threads
-    def run(self):
-        self.tuner.train(self.desired_states, self.learning_rate)
-        self.finished = True
-
-index = 1
-train_thread = None
 tuner = PIDAutoTunerUsingBackwardPropagation(car)
-while index < 10:
-  print("Train iteration times: %d..." % index)
-  for traj_index, wps in enumerate(traj_trainset):
-    # PID auto tuner
-    new_car = Car(
-      1, 1,
-      [0, 0, 0, 0, 0],
-      [
-        tuner.dynamic_system.parameters[0].item(),
-        tuner.dynamic_system.parameters[1].item(),
-        tuner.dynamic_system.parameters[2].item(),
-        tuner.dynamic_system.parameters[3].item()
-      ],
-      dt = time_interval
-    )
-    tuner = PIDAutoTunerUsingBackwardPropagation(new_car)
-    car_desired_states = desired_wayopints
-    train_thread = thread(1, "Tuner", tuner, car_desired_states,  0.1)
-    train_thread.start()
-    
-    while not train_thread.finished:
-      time.sleep(1)
-    print(tuner.dynamic_system.parameters)
-    
-  index += 1
 
-print(new_car.parameters)
+iteration_times = 0
+while iteration_times <= 200:
+  print("Iteration times: %d.........." % iteration_times)
+  pid_controller_initial_parameters = tuner.train(desired_waypoints, sysrem_initial_states, pid_controller_initial_parameters, learning_rate)
+  print("Updated parameters: %s" % torch.t(pid_controller_initial_parameters))
+  iteration_times += 1
 
 car_after_optimized = Car(
   1, 1,
-  [0, 0, 0, 0, 0],
-  [
-    tuner.dynamic_system.parameters[0].item(),
-    tuner.dynamic_system.parameters[1].item(),
-    tuner.dynamic_system.parameters[2].item(),
-    tuner.dynamic_system.parameters[3].item()
-  ],
   dt = time_interval
 )
-
-for traj_index, wps in enumerate(traj_trainset):
-  car_states = []
-  car_after_optimized.reset()
-  TrajPrinter.print_2d_traj(car_after_optimized, desired_wayopints, traj_index)
-
+TrajPrinter.print_2d_traj(car_after_optimized, desired_waypoints, sysrem_initial_states, pid_controller_initial_parameters, 1)
 plt.show()

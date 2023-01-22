@@ -17,7 +17,6 @@ class DubinCarTunerWithRawFormula:
       inputs = self.dynamic_system.h(states, parameters)
       xkp1_states = self.dynamic_system.f(states, inputs)
       states_at_k.append(torch.t(torch.tensor([xkp1_states])))
-      
 
       px, py, theta, v, w = states
       kp, kv, kori, kw = parameters
@@ -93,7 +92,7 @@ class DubinCarTunerWithRawFormula:
 
     loss = 0
     states = torch.clone(initial_states)
-    for index, desired_state in enumerate(desired_states[1:]):
+    for index, desired_state in enumerate(desired_states):
       x_desired, y_desired, vx_desired, vy_desired, accx_desired, accy_desired, angle_desired, angle_dot_desired, angle_ddot_desired = desired_state
       self.dynamic_system.set_desired_state(desired_state)
       inputs = self.dynamic_system.h(states, parameters)

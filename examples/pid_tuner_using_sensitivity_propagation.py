@@ -12,19 +12,18 @@ from utils.waypoint import WayPoint
 from utils.trajectory_gen import PolynomialTrajectoryGenerator
 from tuners.pid_auto_tuner_using_sensitivity_propagation import PIDAutoTunerUsingSensituvityPropagation
 from utils.traj_printer import TrajPrinter
-from utils.commons import get_tensor_item
 
 import torch
 
 # program parameters
-use_circle_traj = True
-used_traj_index = 4
+use_circle_traj = False
+used_traj_index = 5
 
 # tuner parameters
 pid_controller_initial_parameters = torch.tensor([5., 5., 5., 5.]).reshape([4, 1])
-sysrem_initial_states = torch.tensor([0., 0., 0., 0., 0.]).reshape([5, 1])
+system_initial_states = torch.tensor([0., 0., 0., 0., 0.]).reshape([5, 1])
 time_interval = 0.1
-learning_rate = 0.5
+learning_rate = 0.001
 
 # plot attribute
 size = 4
@@ -103,9 +102,9 @@ car = Car(
 tuner = PIDAutoTunerUsingSensituvityPropagation(car)
 
 iteration_times = 0
-while iteration_times <= 200:
+while iteration_times < 100:
   print("Iteration times: %d.........." % iteration_times)
-  pid_controller_initial_parameters = tuner.train(desired_waypoints, sysrem_initial_states, pid_controller_initial_parameters, time_interval, learning_rate)
+  pid_controller_initial_parameters = tuner.train(desired_waypoints, system_initial_states, pid_controller_initial_parameters, learning_rate)
   print("Updated parameters: %s" % torch.t(pid_controller_initial_parameters))
   iteration_times += 1
 
@@ -113,5 +112,5 @@ car_after_optimized = Car(
   1, 1,
   dt = time_interval
 )
-TrajPrinter.print_2d_traj(car_after_optimized, desired_waypoints, sysrem_initial_states, pid_controller_initial_parameters, 1)
+TrajPrinter.print_2d_traj(car_after_optimized, desired_waypoints, system_initial_states, pid_controller_initial_parameters, 1)
 plt.show()

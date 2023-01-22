@@ -6,7 +6,7 @@ class PolynomialTrajectoryGenerator:
   def __init__(self):
     return
   
-  def assign_timestamps_in_waypoints(self, wps):
+  def assign_timestamps_in_waypoints(self, wps, distance_scala_factor = 1):
     accmu_t = 0;
     for index in range(1, len(wps)):
       last_wp = wps[index - 1]
@@ -16,7 +16,7 @@ class PolynomialTrajectoryGenerator:
           + pow(curr_wp.position.y - last_wp.position.y, 2)
           + pow(curr_wp.position.z - last_wp.position.z, 2)
           )
-      accmu_t += dis
+      accmu_t += dis * distance_scala_factor
       wps[index].setTime(accmu_t)
 
   # The initial and final velocity are both 0
@@ -26,7 +26,7 @@ class PolynomialTrajectoryGenerator:
       return -1
 
     N = len(wps)
-    A_dimemsion = (poly_order + 1)*(N-1) 
+    A_dimemsion = (poly_order + 1) * (N-1) 
     A = np.zeros((A_dimemsion, A_dimemsion))
     b_pos_x = np.zeros((A_dimemsion, 1))
     b_pos_y = np.zeros((A_dimemsion, 1))
@@ -37,14 +37,14 @@ class PolynomialTrajectoryGenerator:
       last_wp = wps[index - 1]
       curr_wp = wps[index]
 
-      start_row_index = (poly_order + 1) * (index - 1);
+      start_row_index = (poly_order + 1) * (index - 1)
       # for each sub trajectory, set position constraint
-      self.set_position_constraint(A, index, last_wp, curr_wp, poly_order, start_row_index);
+      self.set_position_constraint(A, index, last_wp, curr_wp, poly_order, start_row_index)
 
       if index < len(wps) - 1:
         # for each sub trajectory, set continuous velocity and acceleration constraint
         for deri_order in range(1, poly_order):
-          self.set_continus_derivative_constraint(A, index, last_wp, curr_wp, poly_order, deri_order, start_row_index + 1 + deri_order);
+          self.set_continus_derivative_constraint(A, index, last_wp, curr_wp, poly_order, deri_order, start_row_index + 1 + deri_order)
 
     # set initial and final velocity constraints
     max_deri = int(poly_order / 2)
@@ -78,8 +78,8 @@ class PolynomialTrajectoryGenerator:
 
       wp = WayPoint(0, 0)
       wp.setTime(accumulated_ts)
-      t = (accumulated_ts - last_wp.ts) / (curr_wp.ts - last_wp.ts)
       ot = curr_wp.ts - last_wp.ts
+      t = (accumulated_ts - last_wp.ts) / ot
 
       poly_pos_t = []
       poly_vel_t = []
@@ -88,7 +88,6 @@ class PolynomialTrajectoryGenerator:
         poly_pos_t.append(pow(t, index))
         poly_vel_t.append(0 if (index - 1) < 0 else (np.math.factorial(index) / np.math.factorial(index - 1) * pow(t, index - 1)))
         poly_acc_t.append(0 if (index - 2) < 0 else (np.math.factorial(index) / np.math.factorial(index - 2) * pow(t, index - 2)))
-
       wp.position.x = poly_pos_t @ co_x[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0]
       wp.position.y = poly_pos_t @ co_y[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0]
       wp.position.z = poly_pos_t @ co_z[(poly_order + 1) * (curr_traj_index - 1) : (poly_order + 1) * curr_traj_index, 0]

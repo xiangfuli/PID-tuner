@@ -13,16 +13,35 @@ class Car(DynamicSystem):
     self.desired_state = (0, 0, 0, 0, 0, 0, 0, 0, 0)
 
   def f(self, k_state, inputs):
+    # # use RK4 to get the updated states
+    # k1_state = self.euler_state_update(k_state, inputs, self.dt/6)
+    # k2_state = self.euler_state_update(k1_state, inputs, self.dt/3)
+    # k3_state = self.euler_state_update(k2_state, inputs, self.dt/3)
+    # k4_state = self.euler_state_update(k3_state, inputs, self.dt/6)
+
+    # k1_px, k1_py, k1_ori, k1_vel, k1_w = k1_state
+    # k2_px, k2_py, k2_ori, k2_vel, k2_w = k2_state
+    # k3_px, k3_py, k3_ori, k3_vel, k3_w = k3_state
+    # k4_px, k4_py, k4_ori, k4_vel, k4_w = k4_state
+
+    # kp1_px = (k1_px + 2 * k2_px + 2 * k3_px + k4_px) / 6
+    # kp1_py = (k1_py + 2 * k2_py + 2 * k3_py + k4_py) / 6
+    # kp1_ori = (k1_ori + 2 * k2_ori + 2 * k3_ori + k4_ori) / 6
+    # kp1_vel = (k1_vel + 2 * k2_vel + 2 * k3_vel + k4_vel) / 6
+    # kp1_w = (k1_w + 2 * k2_w + 2 * k3_w + k4_w) / 6
+    
+    # return (kp1_px, kp1_py, kp1_ori, kp1_vel, kp1_w)
+
     px, py, orientation, vel, w = k_state
     acceleration, orientation_ddot = inputs
-
+    
     orientation_cos = torch.cos(orientation)
     orientation_sin = torch.sin(orientation)
     
     new_position_x_tensor = px + vel * orientation_cos * self.dt
     new_position_y_tensor = py + vel * orientation_sin * self.dt
     new_orientation_tensor = orientation + w * self.dt
-    new_velocity_tensor = vel + acceleration * self.dt
+    new_velocity_tensor = torch.max(torch.tensor(0.), vel + acceleration * self.dt)
     new_orientation_dot_tensor = w + orientation_ddot * self.dt
 
     return (new_position_x_tensor, \
@@ -67,3 +86,22 @@ class Car(DynamicSystem):
   
   def set_desired_state(self, desired_state):
     self.desired_state = desired_state
+
+  def euler_state_update(self, k_state, inputs, dt):
+    px, py, orientation, vel, w = k_state
+    acceleration, orientation_ddot = inputs
+
+    orientation_cos = torch.cos(orientation)
+    orientation_sin = torch.sin(orientation)
+
+    new_position_x_tensor = px + vel * orientation_cos * dt
+    new_position_y_tensor = py + vel * orientation_sin * dt
+    new_orientation_tensor = orientation + w * dt
+    new_velocity_tensor = vel + acceleration * dt
+    new_orientation_dot_tensor = w + orientation_ddot * dt
+
+    return (new_position_x_tensor, \
+      new_position_y_tensor, \
+      new_orientation_tensor, \
+      new_velocity_tensor, \
+      new_orientation_dot_tensor)

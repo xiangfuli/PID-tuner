@@ -11,12 +11,12 @@ import torch
 
 # program parameters
 use_circle_traj = True
-used_traj_index = 4
+used_traj_index = 1
 
 # tuner parameters
 pid_controller_initial_parameters = torch.tensor([5., 5., 5., 5.]).reshape([4, 1])
 sysrem_initial_states = torch.tensor([0., 0., 0., 0., 0.]).reshape([5, 1])
-time_interval = 0.1
+time_interval = 0.01
 learning_rate = 0.5
 
 traj_printer = TrajPrinter()
@@ -91,7 +91,7 @@ car = Car(
 tuner = DubinCarTunerWithRawFormula(car)
 
 iteration_times = 0
-while iteration_times <= 200:
+while iteration_times <= 20:
   print("Iteration times: %d.........." % iteration_times)
   pid_controller_initial_parameters = tuner.train(desired_waypoints, sysrem_initial_states, pid_controller_initial_parameters, time_interval, learning_rate)
   print("Updated parameters: %s" % torch.t(pid_controller_initial_parameters))
