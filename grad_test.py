@@ -12,28 +12,21 @@ grad = jacobian(quaternion_2_rotation_matrix, a)
 # print(grad)
 
 def func(input0, input1):
-  a = input0[0]
-  b = input0[1]
+  a = input0 ** 2
 
   c = input1[0]
   d = input1[1]
 
-  a_pow = a ** 2
-  b_pow = b ** 2
   c_pow = c ** 2
   d_pow = d ** 2
 
   # return torch.tensor(
-  #   [
-  #     a_pow,
-  #     b_pow,
-  #     c_pow,
-  #     d_pow,
-  #   ]
+  #     a
   # )
-  return (a_pow, b_pow, c_pow, d_pow)
+  return torch.stack((a, a))
+  # return (a, c_pow, d_pow)
 
-grad = jacobian(func, (torch.tensor([2,3]).double(), torch.tensor([5,6]).double()))
+grad = jacobian(func, (torch.tensor([2, 3]).double(), torch.tensor([5,6]).double()))
 
 print(grad)
 
