@@ -54,7 +54,7 @@ class PIDAutoTunerUsingSensituvityPropagation:
     state_chooser[3, 3] = 0.
     state_chooser[4, 4] = 0.
     gradient_sum = torch.zeros([4, 1]).double()
-    for index in range(0, len(desired_states[1:])):
+    for index in range(0, len(desired_states)):
       px, py, theta, v, w = states_at_k[index]
       x_desired, y_desired, vx_desired, vy_desired, accx_desired, accy_desired, angle_desired, angle_dot_desired, angle_ddot_desired = desired_states[index]
 
