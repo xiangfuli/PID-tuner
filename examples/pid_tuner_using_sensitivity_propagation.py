@@ -17,13 +17,13 @@ import torch
 
 # program parameters
 use_circle_traj = False
-used_traj_index = 4
+used_traj_index = 3
 
 # tuner parameters
 pid_controller_initial_parameters = torch.tensor([5., 5., 5., 5.]).reshape([4, 1])
 system_initial_states = torch.tensor([0., 0., 0., 0., 0.]).reshape([5, 1])
 time_interval = 0.1
-learning_rate = 0.001
+learning_rate = 0.005
 
 # plot attribute
 size = 4
@@ -102,7 +102,7 @@ car = Car(
 tuner = PIDAutoTunerUsingSensituvityPropagation(car)
 
 iteration_times = 0
-while iteration_times < 0:
+while iteration_times < 200:
   print("Iteration times: %d.........." % iteration_times)
   pid_controller_initial_parameters = tuner.train(desired_waypoints, system_initial_states, pid_controller_initial_parameters, learning_rate)
   print("Updated parameters: %s" % torch.t(pid_controller_initial_parameters))
