@@ -24,8 +24,8 @@ def vee(skew_symmetric_matrix):
 
 def quaternion_2_rotation_matrix(q):
   q = q / torch.norm(q)
-  qahat = hat(q[1:])
-  return torch.eye(3) + 2 * torch.mm(qahat, qahat) + 2 * q[0] * qahat
+  qahat = hat(q[:][1:4])
+  return (torch.eye(3) + 2 * torch.mm(qahat, qahat) + 2 * q[0] * qahat).double()
 
 def rotation_matrix_2_quaternion(R):
   tr = R[0,0] + R[1,1] + R[2,2];
@@ -56,7 +56,10 @@ def rotation_matrix_2_quaternion(R):
     qz = 0.25 * S
 
   q = torch.tensor([[qw,qx,qy,qz]]).reshape([4,1])
-  q = q*(qw/torch.abs(qw))
+  q = q * ((qw+0.00000001) / torch.abs(qw + 0.00000001))
+  q = q / torch.norm(q)
+
+  return q
 
 def get_shortest_path_between_angles(original_ori, des_ori):
   e_ori = des_ori - original_ori
@@ -69,3 +72,18 @@ def get_shortest_path_between_angles(original_ori, des_ori):
 
 def get_desired_angular_speed(original_ori, des_ori, dt):
   return get_shortest_path_between_angles(original_ori, des_ori) / dt
+
+def angular_vel_2_quaternion_dot(quaternion, w):
+  qW, qX, qY, qZ = quaternion
+  p, q, r = w
+
+  K_quat = 2; #this enforces the magnitude 1 constraint for the quaternion
+  quaterror = 1 - (qW**2 + qX**2 + qY**2 + qZ**2)
+  
+  return -0.5 * torch.mm(torch.tensor(
+    [
+      [0, p, q, r],
+      [-p, 0, -r, q],
+      [-q, r, 0, -p],
+      [-r, -q, p, 0]
+    ], dtype=torch.float64), quaternion)
