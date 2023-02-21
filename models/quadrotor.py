@@ -69,7 +69,9 @@ class Quadrotor:
     # f = torch.mm(B, prop_thrusts_clamped)[0]
     # M = torch.mm(B, prop_thrusts_clamped)[1:].reshape([3, 1])
 
-    return (f, M)
+    return torch.stack(
+      [f[0], M[0], M[1], M[2]]
+    ).reshape([4, 1])
 
   def f(self, k_states, inputs):
     position = k_states[0:3]

@@ -18,9 +18,7 @@ class PIDAutoTunerUsingSensituvityPropagation:
     states_at_k.append(states)
     for index, desired_state in enumerate(desired_states):
       self.dynamic_system.set_desired_state(desired_state)
-      inputs = self.dynamic_system.h(states, parameters)
-      f, M = inputs
-      inputs_tensor = torch.concat((f.reshape([1, 1])[0], M.reshape([1, 3])[0]), dim=0)
+      inputs_tensor = self.dynamic_system.h(states, parameters)
       xkp1_states = self.dynamic_system.f(states, inputs_tensor)
 
       position, pose, velocity, w = xkp1_states
@@ -48,20 +46,20 @@ class PIDAutoTunerUsingSensituvityPropagation:
 
       dhdxk_tensor = torch.concat(
         [
-          torch.t(dhdxk_grad[0][0][0]),
-          torch.t(dhdxk_grad[1][0][0]),
-          torch.t(dhdxk_grad[1][1][0]),
-          torch.t(dhdxk_grad[1][2][0])
+          torch.t(dhdxk_grad[0][0]),
+          torch.t(dhdxk_grad[1][0]),
+          torch.t(dhdxk_grad[2][0]),
+          torch.t(dhdxk_grad[3][0])
         ], 
         dim=0
       )
 
       dhdparam_tensor = torch.concat(
         [
-          torch.t(dhdparam_grad[0][0][0]),
-          torch.t(dhdparam_grad[1][0][0]),
-          torch.t(dhdparam_grad[1][1][0]),
-          torch.t(dhdparam_grad[1][2][0])
+          torch.t(dhdparam_grad[0][0]),
+          torch.t(dhdparam_grad[1][0]),
+          torch.t(dhdparam_grad[2][0]),
+          torch.t(dhdparam_grad[3][0])
         ],
         dim=0
       )
@@ -87,19 +85,19 @@ class PIDAutoTunerUsingSensituvityPropagation:
 
       dfduk_tensor = torch.concat(
         [
-          dfduk_grad[0][0],
-          dfduk_grad[0][1],
-          dfduk_grad[0][2],
-          dfduk_grad[1][0],
-          dfduk_grad[1][1],
-          dfduk_grad[1][2],
-          dfduk_grad[1][3],
-          dfduk_grad[2][0],
-          dfduk_grad[2][1],
-          dfduk_grad[2][2],
-          dfduk_grad[3][0],
-          dfduk_grad[3][1],
-          dfduk_grad[3][2],
+          dfduk_grad[0][0].reshape([1, 4]),
+          dfduk_grad[0][1].reshape([1, 4]),
+          dfduk_grad[0][2].reshape([1, 4]),
+          dfduk_grad[1][0].reshape([1, 4]),
+          dfduk_grad[1][1].reshape([1, 4]),
+          dfduk_grad[1][2].reshape([1, 4]),
+          dfduk_grad[1][3].reshape([1, 4]),
+          dfduk_grad[2][0].reshape([1, 4]),
+          dfduk_grad[2][1].reshape([1, 4]),
+          dfduk_grad[2][2].reshape([1, 4]),
+          dfduk_grad[3][0].reshape([1, 4]),
+          dfduk_grad[3][1].reshape([1, 4]),
+          dfduk_grad[3][2].reshape([1, 4]),
         ],
         dim=0
       )
@@ -150,9 +148,7 @@ class PIDAutoTunerUsingSensituvityPropagation:
     for index, desired_state in enumerate(desired_states):
       desired_position, desired_velocity, desired_acceleration, desired_pose, desired_angular_vel, desired_angular_acc = desired_states[index]
       self.dynamic_system.set_desired_state(desired_state)
-      inputs = self.dynamic_system.h(states, updated_parameters_tensor)
-      f, M = inputs
-      inputs_tensor = torch.concat((f.reshape([1, 1])[0], M.reshape([1, 3])[0]), dim=0)
+      inputs_tensor = self.dynamic_system.h(states, updated_parameters_tensor)
       xkp1_states = self.dynamic_system.f(states, inputs_tensor)
       
       position = xkp1_states[0]

@@ -103,8 +103,7 @@ for desired_states_in_each_traj in desired_states_in_trajs:
   #     desired_state = desired_states_in_each_traj[iter_times]
   for desired_state in desired_states_in_each_traj:
     quadrotor.set_desired_state(desired_state)
-    f, M = quadrotor.h(states, initial_pid_parameters)
-    inputs_tensor = torch.concat((f.reshape([1, 1])[0], M.reshape([1, 3])[0]), dim=0)
+    inputs_tensor = quadrotor.h(states, initial_pid_parameters)
     xkp1_states = quadrotor.f(states, inputs_tensor)
     states = torch.tensor([xkp1_states[0][0], xkp1_states[0][1], xkp1_states[0][2],
       xkp1_states[1][0], xkp1_states[1][1], xkp1_states[1][2], xkp1_states[1][3],
@@ -127,8 +126,8 @@ for index, traj in enumerate(quadrotor_trajs):
     velocities.append(torch.tensor([state[7], state[8], state[9]]).reshape([3, 1]))
   traj_printer.plot_3d_quadrotor_using_torch_tensors(positions, poses, velocities, False)
 
-# tuner = PIDAutoTunerUsingSensituvityPropagation(quadrotor)
-tuner = PIDAutoTunerUsingInfiniteDifference(quadrotor)
+tuner = PIDAutoTunerUsingSensituvityPropagation(quadrotor)
+# tuner = PIDAutoTunerUsingInfiniteDifference(quadrotor)
 
 iteration_times = 0
 while iteration_times < 50:
@@ -153,8 +152,7 @@ for desired_states_in_each_traj in desired_states_in_trajs:
   #     desired_state = desired_states_in_each_traj[iter_times]
   for desired_state in desired_states_in_each_traj:
     quadrotor.set_desired_state(desired_state)
-    f, M = quadrotor.h(states, initial_pid_parameters)
-    inputs_tensor = torch.concat((f.reshape([1, 1])[0], M.reshape([1, 3])[0]), dim=0)
+    inputs_tensor = quadrotor.h(states, initial_pid_parameters)
     xkp1_states = quadrotor.f(states, inputs_tensor)
     states = torch.tensor([xkp1_states[0][0], xkp1_states[0][1], xkp1_states[0][2],
       xkp1_states[1][0], xkp1_states[1][1], xkp1_states[1][2], xkp1_states[1][3],

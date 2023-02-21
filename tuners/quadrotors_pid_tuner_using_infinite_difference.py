@@ -18,9 +18,7 @@ class PIDAutoTunerUsingInfiniteDifference:
     states_at_k.append(states)
     for index, desired_state in enumerate(desired_states):
       self.dynamic_system.set_desired_state(desired_state)
-      inputs = self.dynamic_system.h(states, parameters)
-      f, M = inputs
-      inputs_tensor = torch.concat((f.reshape([1, 1])[0], M.reshape([1, 3])[0]), dim=0)
+      inputs_tensor = self.dynamic_system.h(states, parameters)
       xkp1_states = self.dynamic_system.f(states, inputs_tensor)
 
       position, pose, velocity, w = xkp1_states
@@ -46,11 +44,11 @@ class PIDAutoTunerUsingInfiniteDifference:
         dhdxk_grad_0 = torch.concat([dhdxk_grad_0,
           torch.tensor([(f_state_p_output[0] - f_state_m_output[0]) / (2 * self.ind)])])
         dhdxk_grad_1 = torch.concat([dhdxk_grad_1,
-          torch.tensor([(f_state_p_output[1][0] - f_state_m_output[1][0]) / (2 * self.ind)])])
+          torch.tensor([(f_state_p_output[1] - f_state_m_output[1]) / (2 * self.ind)])])
         dhdxk_grad_2 = torch.concat([dhdxk_grad_2,
-          torch.tensor([(f_state_p_output[1][1] - f_state_m_output[1][1]) / (2 * self.ind)])])
+          torch.tensor([(f_state_p_output[2] - f_state_m_output[2]) / (2 * self.ind)])])
         dhdxk_grad_3 = torch.concat([dhdxk_grad_3,
-          torch.tensor([(f_state_p_output[1][2] - f_state_m_output[1][2]) / (2 * self.ind)])])
+          torch.tensor([(f_state_p_output[3] - f_state_m_output[3]) / (2 * self.ind)])])
 
         states[state_index] = ori_state
         
@@ -79,11 +77,11 @@ class PIDAutoTunerUsingInfiniteDifference:
         dhdparam_grad_0 = torch.concat([dhdparam_grad_0,
           torch.tensor([(h_p_output[0] - h_m_output[0]) / (2 * self.ind)])])
         dhdparam_grad_1 = torch.concat([dhdparam_grad_1,
-          torch.tensor([(h_p_output[1][0] - h_m_output[1][0]) / (2 * self.ind)])])
+          torch.tensor([(h_p_output[1] - h_m_output[1]) / (2 * self.ind)])])
         dhdparam_grad_2 = torch.concat([dhdparam_grad_2,
-          torch.tensor([(h_p_output[1][1] - h_m_output[1][1]) / (2 * self.ind)])])
+          torch.tensor([(h_p_output[2] - h_m_output[2]) / (2 * self.ind)])])
         dhdparam_grad_3 = torch.concat([dhdparam_grad_3,
-          torch.tensor([(h_p_output[1][2] - h_m_output[1][2]) / (2 * self.ind)])])
+          torch.tensor([(h_p_output[3] - h_m_output[3]) / (2 * self.ind)])])
 
         parameters[param_index] = ori_param
         
@@ -262,9 +260,7 @@ class PIDAutoTunerUsingInfiniteDifference:
     for index, desired_state in enumerate(desired_states):
       desired_position, desired_velocity, desired_acceleration, desired_pose, desired_angular_vel, desired_angular_acc = desired_states[index]
       self.dynamic_system.set_desired_state(desired_state)
-      inputs = self.dynamic_system.h(states, updated_parameters_tensor)
-      f, M = inputs
-      inputs_tensor = torch.concat((f.reshape([1, 1])[0], M.reshape([1, 3])[0]), dim=0)
+      inputs_tensor = self.dynamic_system.h(states, updated_parameters_tensor)
       xkp1_states = self.dynamic_system.f(states, inputs_tensor)
       
       position = xkp1_states[0]
