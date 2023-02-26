@@ -32,25 +32,69 @@ class Car(DynamicSystem):
     
     # return (kp1_px, kp1_py, kp1_ori, kp1_vel, kp1_w)
 
-    px, py, orientation, vel, w = k_state
-    acceleration, orientation_ddot = inputs
+    # px, py, orientation, vel, w = k_state
+    # acceleration, orientation_ddot = inputs
     
-    orientation_cos = torch.cos(orientation)
-    orientation_sin = torch.sin(orientation)
+    # orientation_cos = torch.cos(orientation)
+    # orientation_sin = torch.sin(orientation)
     
-    new_position_x_tensor = px + vel * orientation_cos * self.dt
-    new_position_y_tensor = py + vel * orientation_sin * self.dt
-    new_orientation_tensor = orientation + w * self.dt
-    new_velocity_tensor = torch.max(torch.tensor(0.), vel + acceleration * self.dt)
-    new_orientation_dot_tensor = w + orientation_ddot * self.dt
+    # new_position_x_tensor = px + vel * orientation_cos * self.dt
+    # new_position_y_tensor = py + vel * orientation_sin * self.dt
+    # new_orientation_tensor = orientation + w * self.dt
+    # new_velocity_tensor = torch.max(torch.tensor(0.), vel + acceleration * self.dt)
+    # new_orientation_dot_tensor = w + orientation_ddot * self.dt
 
+    # return (new_position_x_tensor, \
+    #   new_position_y_tensor, \
+    #   new_orientation_tensor, \
+    #   new_velocity_tensor, \
+    #   new_orientation_dot_tensor)
+
+    k1 = self.derivative(k_state, inputs)
+    k2 = self.derivative(self.euler_update(k_state, k1, self.dt / 2), inputs)
+    k3 = self.derivative(self.euler_update(k_state, k2, self.dt / 2), inputs)
+    k4 = self.derivative(self.euler_update(k_state, k3, self.dt), inputs)
+
+    new_position_x_tensor, \
+      new_position_y_tensor, \
+      new_orientation_tensor, \
+      new_velocity_tensor, \
+      new_orientation_dot_tensor = self.euler_update(k_state, (k1 + 2 * k2 + 2 * k3 + k4) / 6, self.dt)
+    
     return (new_position_x_tensor, \
       new_position_y_tensor, \
       new_orientation_tensor, \
       new_velocity_tensor, \
       new_orientation_dot_tensor)
+
+  def euler_update(self, state, de, dt):
+    pos_x, pos_y, orientation, vel, w = state
+    vx, vy, angular, acc, w_dot = de
+    return torch.stack(
+      [
+        pos_x + vx * dt,
+        pos_y + vy * dt,
+        orientation + angular * dt,
+        vel + acc * dt,
+        w + w_dot * dt
+      ]
+    )
     
-  
+  def derivative(self, state, input):
+        pos_x, pos_y, orientation, vel, w = state
+        # acceleration and angular acceleration
+        acc, w_dot = input
+
+        return torch.stack(
+            [
+                vel * torch.cos(orientation),
+                vel * torch.sin(orientation),
+                w,
+                acc,
+                w_dot
+            ]
+        )
+
   def h(self, k_state, parameters):
     x_desired, y_desired, vx_desired, vy_desired, accx_desired, accy_desired, angle_desired, angle_dot_desired, angle_ddot_desired = self.desired_state
     px, py, orientation, vel, w = k_state
