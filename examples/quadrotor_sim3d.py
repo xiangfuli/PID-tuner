@@ -13,18 +13,20 @@ from tuners.quadrotors_pid_auto_tuner_using_sensitivity_propagation import PIDAu
 g = 9.81
 
 # program parameters
-time_interval = 0.01
-learning_rate = 0.5
+time_interval = 0.02
+learning_rate = 0.05
 initial_states = torch.tensor([0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).reshape([13, 1]).double()
-initial_pid_parameters = torch.tensor([1, 10, 0.5, 10]).reshape([4, 1]).double()
+initial_pid_parameters = torch.tensor([[0.5003, 0.0996, 0.7173, 0.0100]]).reshape([4, 1]).double()
 
 quadrotor_waypoints = [
     [
       WayPoint(0, 0, 0, 0),
-      WayPoint(1, 2, 1, 2),
-      WayPoint(4, 0, 2, 4),
-      # WayPoint(2, -2, -3),
-      # WayPoint(0, 0, -4),
+      WayPoint(1, 2, -1, 2),
+      WayPoint(3, 6, -5, 4),
+      WayPoint(2, 4, -3, 6),
+      WayPoint(0, 2, -1, 8),
+      WayPoint(0, 0, 0, 10),
+      WayPoint(0, 1, 3, 12)
     ]
 ]
 
@@ -90,11 +92,17 @@ for wps in quadrotor_trajs:
 
 quadrotor = Quadrotor(dt = time_interval)
 quadrotor_states_in_trajs = []
+desired_positions_in_trajs = []
+desired_vels_in_trajs = []
 max_iter_times = 3 / time_interval
 for desired_states_in_each_traj in desired_states_in_trajs:
+  desired_positions = []
+  desired_vels = []
   quadrotor_states_in_each_traj = []
   states = initial_states
   quadrotor_states_in_each_traj.append(states)
+  desired_positions.append(torch.zeros([1,3])[0])
+  desired_vels.append(torch.zeros([1,3])[0])
   iter_times = 0
   # while iter_times < max_iter_times:
   #   if iter_times >= len(desired_states_in_each_traj):
@@ -103,15 +111,16 @@ for desired_states_in_each_traj in desired_states_in_trajs:
   #     desired_state = desired_states_in_each_traj[iter_times]
   for desired_state in desired_states_in_each_traj:
     quadrotor.set_desired_state(desired_state)
-    inputs_tensor = quadrotor.h(states, initial_pid_parameters)
-    xkp1_states = quadrotor.f(states, inputs_tensor)
-    states = torch.tensor([xkp1_states[0][0], xkp1_states[0][1], xkp1_states[0][2],
-      xkp1_states[1][0], xkp1_states[1][1], xkp1_states[1][2], xkp1_states[1][3],
-      xkp1_states[2][0], xkp1_states[2][1], xkp1_states[2][2],
-      xkp1_states[3][0], xkp1_states[3][1], xkp1_states[3][2],]).reshape([13, 1])
+    inputs_tensor = quadrotor.h(states, initial_pid_parameters, torch.zeros([13,1]))
+    xkp1_states = quadrotor.f(states, inputs_tensor, torch.zeros([4,1]))
+    states = xkp1_states
     quadrotor_states_in_each_traj.append(states)
+    desired_positions.append(torch.tensor([desired_state[0][0], desired_state[0][1], desired_state[0][2]]))
+    desired_vels.append(torch.tensor([desired_state[1][0], desired_state[1][1], desired_state[1][2]]))
     iter_times += 1
   quadrotor_states_in_trajs.append(quadrotor_states_in_each_traj)
+  desired_positions_in_trajs.append(desired_positions)
+  desired_vels_in_trajs.append(desired_vels)
 
 print("Start plotting...")
 
@@ -124,7 +133,7 @@ for index, traj in enumerate(quadrotor_trajs):
     positions.append(torch.tensor([state[0], state[1], state[2]]).reshape([3, 1]))
     poses.append(quaternion_2_rotation_matrix(torch.tensor([state[3], state[4], state[5], state[6]])))
     velocities.append(torch.tensor([state[7], state[8], state[9]]).reshape([3, 1]))
-  traj_printer.plot_3d_quadrotor_using_torch_tensors(positions, poses, velocities, False)
+  traj_printer.plot_3d_quadrotor_using_torch_tensors(positions, poses, velocities, desired_positions_in_trajs[index], desired_vels_in_trajs[index], False)
 
 tuner = PIDAutoTunerUsingSensituvityPropagation(quadrotor)
 # tuner = PIDAutoTunerUsingInfiniteDifference(quadrotor)
@@ -132,7 +141,7 @@ tuner = PIDAutoTunerUsingSensituvityPropagation(quadrotor)
 iteration_times = 0
 while iteration_times < 50:
   print("Iteration times: %d.........." % iteration_times)
-  initial_pid_parameters = tuner.train(desired_states_in_trajs[0], initial_states, initial_pid_parameters, learning_rate)
+  initial_pid_parameters = tuner.train(desired_states_in_trajs[0], initial_states, initial_pid_parameters, learning_rate, iteration_times)
   print("Updated parameters: %s" % torch.t(initial_pid_parameters))
   iteration_times += 1
 
@@ -140,27 +149,22 @@ quadrotor_after_optimized = Quadrotor(dt = time_interval)
 
 print("Printing final trajectory...")
 quadrotor_after_optimized_trajectory = []
+
 for desired_states_in_each_traj in desired_states_in_trajs:
   quadrotor_states_in_each_traj = []
   states = initial_states
   quadrotor_states_in_each_traj.append(states)
   iter_times = 0
-  # while iter_times < max_iter_times:
-  #   if iter_times >= len(desired_states_in_each_traj):
-  #     desired_state = (desired_states_in_each_traj[-1][0], torch.zeros([3, 1]).double(), torch.zeros([3, 1]).double(), quaternion_2_rotation_matrix(initial_states[1]), torch.zeros([3, 1]).double(), torch.zeros([3, 1]).double())
-  #   else:
-  #     desired_state = desired_states_in_each_traj[iter_times]
   for desired_state in desired_states_in_each_traj:
     quadrotor.set_desired_state(desired_state)
-    inputs_tensor = quadrotor.h(states, initial_pid_parameters)
-    xkp1_states = quadrotor.f(states, inputs_tensor)
-    states = torch.tensor([xkp1_states[0][0], xkp1_states[0][1], xkp1_states[0][2],
-      xkp1_states[1][0], xkp1_states[1][1], xkp1_states[1][2], xkp1_states[1][3],
-      xkp1_states[2][0], xkp1_states[2][1], xkp1_states[2][2],
-      xkp1_states[3][0], xkp1_states[3][1], xkp1_states[3][2],]).reshape([13, 1])
+    inputs_tensor = quadrotor.h(states, initial_pid_parameters, torch.zeros([13,1]))
+    xkp1_states = quadrotor.f(states, inputs_tensor, torch.zeros([4,1]))
+    states = xkp1_states
     quadrotor_states_in_each_traj.append(states)
+    
     iter_times += 1
   quadrotor_after_optimized_trajectory.append(quadrotor_states_in_each_traj)
+
 # plot 3d trajectory
 for index, traj in enumerate(quadrotor_trajs):
   positions = []
@@ -170,4 +174,4 @@ for index, traj in enumerate(quadrotor_trajs):
     positions.append(torch.tensor([state[0], state[1], state[2]]).reshape([3, 1]))
     poses.append(quaternion_2_rotation_matrix(torch.tensor([state[3], state[4], state[5], state[6]])))
     velocities.append(torch.tensor([state[7], state[8], state[9]]).reshape([3, 1]))
-  traj_printer.plot_3d_quadrotor_using_torch_tensors(positions, poses, velocities, False)
+  traj_printer.plot_3d_quadrotor_using_torch_tensors(positions, poses, velocities, desired_positions_in_trajs[index], desired_vels_in_trajs[index], False)

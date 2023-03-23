@@ -115,13 +115,22 @@ class TrajPrinter:
       ax.plot(xs, ys, zs, c='black')
       plt.pause(0.001)
       
-  def plot_3d_quadrotor_using_torch_tensors(self, positions, poses, velocities, pasue_or_not = False):
+  def plot_3d_quadrotor_using_torch_tensors(self, positions, poses, velocities, desired_positions, desired_vels, pasue_or_not = False):
     xs = []
     ys = []
     zs = []
+    xs_des = []
+    ys_des = []
+    zs_des = []
+
+    
     vel_xs = []
     vel_ys = []
     vel_zs = []
+    vel_xs_des = []
+    vel_ys_des = []
+    vel_zs_des = []
+
     fig = plt.figure(figsize=plt.figaspect(2.5))
     ax = fig.add_subplot(3, 1, 1, projection = '3d')
     ax_pos = fig.add_subplot(3, 1, 2)
@@ -140,9 +149,15 @@ class TrajPrinter:
       xs.append(position[0].item())
       ys.append(position[1].item())
       zs.append(position[2].item())
+      xs_des.append(desired_positions[index][0].item())
+      ys_des.append(desired_positions[index][1].item())
+      zs_des.append(desired_positions[index][2].item())
       vel_xs.append(velocities[index][0].item())
       vel_ys.append(velocities[index][1].item())
       vel_zs.append(velocities[index][2].item())
+      vel_xs_des.append(desired_vels[index][0].item())
+      vel_ys_des.append(desired_vels[index][1].item())
+      vel_zs_des.append(desired_vels[index][2].item())
       
       if pasue_or_not:
         ax.plot(xs, ys, zs, c='black')
@@ -167,12 +182,19 @@ class TrajPrinter:
         plt.pause(0.001)
         if index != len(positions)-1:
           ax.cla()
+      ax_pos.plot(waypoonts_indexes, xs_des, c='red', linestyle='dashed')
+      ax_pos.plot(waypoonts_indexes, ys_des, c='green', linestyle='dashed')
+      ax_pos.plot(waypoonts_indexes, zs_des, c='blue', linestyle='dashed')
       ax_pos.plot(waypoonts_indexes, xs, c='red')
       ax_pos.plot(waypoonts_indexes, ys, c='green')
       ax_pos.plot(waypoonts_indexes, zs, c='blue')
       ax_vel.plot(waypoonts_indexes, vel_xs, c='red')
       ax_vel.plot(waypoonts_indexes, vel_ys, c='green')
       ax_vel.plot(waypoonts_indexes, vel_zs, c='blue')
+      ax_vel.plot(waypoonts_indexes, vel_xs_des, c='red', linestyle='dashed')
+      ax_vel.plot(waypoonts_indexes, vel_ys_des, c='green', linestyle='dashed')
+      ax_vel.plot(waypoonts_indexes, vel_zs_des, c='blue', linestyle='dashed')
+
     if not pasue_or_not:
       position = positions[-1]
       ax.invert_xaxis()
@@ -200,8 +222,34 @@ class TrajPrinter:
       ax_vel.plot(waypoonts_indexes, vel_ys, c='green')
       ax_vel.plot(waypoonts_indexes, vel_zs, c='blue')
       ax_vel.set_title('Velocity')
-
-      
     
     plt.show()
   
+  def plot_3d_trajectory_only_positions(self, real_positions, desired_positions):
+    xs = []
+    ys = []
+    zs = []
+    xs_des = []
+    ys_des = []
+    zs_des = []
+
+    dts = []
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z');
+    for i in range(0, len(real_positions)):
+      xs.append(real_positions[i][0].item())
+      ys.append(real_positions[i][1].item())
+      zs.append(real_positions[i][2].item())
+      xs_des.append(desired_positions[i][0].item())
+      ys_des.append(desired_positions[i][1].item())
+      zs_des.append(desired_positions[i][2].item())
+      dts.append(i)
+
+    ax.plot(xs, ys, zs, c='black')
+    ax.plot(xs_des, ys_des, zs_des, c='red')
+    plt.show(block=False)
+    plt.pause(1)
+      

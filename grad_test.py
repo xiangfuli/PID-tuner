@@ -5,7 +5,7 @@ from torch.autograd.functional import jacobian
 
 a = torch.tensor([[0.9346231 ], [ 0.0853563], [0.0512138], [0.3414252]], requires_grad=True)
 
-grad = jacobian(quaternion_2_rotation_matrix, a)
+# grad = jacobian(quaternion_2_rotation_matrix, a)
 
 # print(quaternion_2_rotation_matrix(a))
 
@@ -26,8 +26,18 @@ def func(input0, input1):
   return torch.stack((a, a))
   # return (a, c_pow, d_pow)
 
-grad = jacobian(func, (torch.tensor([2, 3]).double(), torch.tensor([5,6]).double()))
+# grad = jacobian(func, (torch.tensor([2, 3]).double(), torch.tensor([5,6]).double()))
 
-print(grad)
+# print(grad)
+
+
+# test backward
+w = torch.randn(5,5,requires_grad = True)
+x = torch.randn(5,5,requires_grad = True)
+y = torch.mm(x, x)
+dydx = grad(outputs=y[0][0], inputs=x, retain_graph=True)
+print(dydx)
+dydx = grad(outputs=y[0][0], inputs=x)
+print(dydx)
 
 

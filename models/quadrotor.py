@@ -23,9 +23,11 @@ class Quadrotor:
 
     self.desired_state = ()
 
-  def h(self, k_states, parameters):
+  def h(self, k_states, parameters, measurement_noise):
     desired_position, desired_velocity, desired_acceleration, desired_pose, desired_angular_vel, desired_angular_acc = self.desired_state
     
+    k_states = k_states + measurement_noise
+
     position = k_states[0:3]
     pose = k_states[3:7]
     vel = k_states[7:10]
@@ -70,40 +72,84 @@ class Quadrotor:
     # M = torch.mm(B, prop_thrusts_clamped)[1:].reshape([3, 1])
 
     return torch.stack(
-      [f[0], M[0], M[1], M[2]]
+      [torch.max(torch.tensor([0.]), f[0]), M[0], M[1], M[2]]
     ).reshape([4, 1])
 
-  def f(self, k_states, inputs):
-    position = k_states[0:3]
-    pose = k_states[3:7]
-    vel = k_states[7:10]
-    angular_vel = k_states[10:13]
+  # def f(self, k_states, inputs):
+  #   position, pose, vel, angular_vel = k_states[0:3], k_states[3:7], k_states[7:10], k_states[10:13]
     
-    f = inputs[0]
-    M = inputs[1:4]
-    M = M.reshape([3, 1])
+  #   f = inputs[0]
+  #   M = inputs[1:4]
+  #   M = M.reshape([3, 1])
 
-    pose_R = quaternion_2_rotation_matrix(pose)
+  #   pose_R = quaternion_2_rotation_matrix(pose)
 
-    f = torch.mm(pose_R, -f * e3)
-    f += self.m * g * e3
+  #   f = torch.mm(pose_R, -f * e3)
+  #   f += self.m * g * e3
 
-    acc = f / self.m
-    vel_end = vel + acc * self.dt
-    position_end = position + vel * self.dt
+  #   acc = f / self.m
+  #   vel_end = vel + acc * self.dt
+  #   position_end = position + vel * self.dt
 
-    pose_end = pose + angular_vel_2_quaternion_dot(pose, angular_vel) * self.dt
-    pose_end = pose_end / torch.norm(pose_end)
-    pqrdot = torch.mm(self.J_inv, M - torch.cross(angular_vel, torch.mm(self.J, angular_vel)))
+  #   pose_end = pose + angular_vel_2_quaternion_dot(pose, angular_vel) * self.dt
+  #   pose_end = pose_end / torch.norm(pose_end)
+  #   pqrdot = torch.mm(self.J_inv, M - torch.cross(angular_vel, torch.mm(self.J, angular_vel)))
     
-    angular_end = pqrdot * self.dt + angular_vel
+  #   angular_end = pqrdot * self.dt + angular_vel
 
-    return (
-        position_end,
-        pose_end,
-        vel_end,
-        angular_end
-    )
+  #   return (
+  #       position_end,
+  #       pose_end,
+  #       vel_end,
+  #       angular_end
+  #   )
+
+  def f(self, k_states, inputs, system_plant_noise):
+    k1 = self.derivative(k_states, inputs + system_plant_noise)
+    k2 = self.derivative(self.euler_update(k_states, k1, self.dt / 2), inputs + system_plant_noise)
+    k3 = self.derivative(self.euler_update(k_states, k2, self.dt / 2), inputs + system_plant_noise)
+    k4 = self.derivative(self.euler_update(k_states, k3, self.dt), inputs + system_plant_noise)
+
+    updated_state = k_states + (k1 + 2 * k2 + 2 * k3 + k4) / 6 * self.dt
+    # normalize quaternion
+
+    return updated_state
   
   def set_desired_state(self, desired_state):
     self.desired_state = desired_state
+
+  def derivative(self, state, input):
+    position, pose, vel, angular_speed = state[0:3], state[3:7], state[7:10], state[10:13]
+    thrust, M = input[0], input[1:4].reshape([3, 1])
+    pose_in_R = quaternion_2_rotation_matrix(pose)
+
+    acceleration = (torch.mm(pose_in_R, -thrust * e3) + self.m * g * e3) / self.m
+    w_dot = torch.mm(self.J_inv, M - torch.cross(angular_speed, torch.mm(self.J, angular_speed)))
+    
+    return torch.concat(
+      [
+        vel,
+        angular_vel_2_quaternion_dot(pose, angular_speed),
+        acceleration,
+        w_dot
+      ]
+    )
+
+  def euler_update(self, state, derivative, dt):
+    position, pose, vel, angular_speed = state[0:3], state[3:7], state[7:10], state[10:13]
+    vel, angular_derivative, acceleration, w_dot = derivative[0:3], derivative[3:7], derivative[7:10], derivative[10:13]
+
+    position_updated = position + vel * dt
+    pose_updated = pose + angular_derivative * dt
+    pose_updated = pose_updated / torch.norm(pose_updated)
+    vel_updated = vel + acceleration * dt
+    angular_speed_updated = angular_speed + w_dot * dt
+
+    return torch.concat(
+      [
+        position_updated,
+        pose_updated,
+        vel_updated,
+        angular_speed_updated
+      ]
+    )
