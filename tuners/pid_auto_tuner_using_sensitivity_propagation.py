@@ -19,8 +19,8 @@ class PIDAutoTunerUsingSensituvityPropagation:
     states_at_k.append(states)
     for index, desired_state in enumerate(desired_states[1:]):
       self.dynamic_system.set_desired_state(desired_state)
-      inputs = self.dynamic_system.h(states, parameters)
-      xkp1_states = self.dynamic_system.f(states, inputs)
+      inputs = self.dynamic_system.h(states, parameters, torch.zeros([5, 1]))
+      xkp1_states = self.dynamic_system.f(states, inputs, torch.zeros([5, 1]))
 
       inputs_var_number = len(inputs)
       states_var_number = len(states)

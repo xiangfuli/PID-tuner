@@ -12,7 +12,7 @@ class Car(DynamicSystem):
     self.dt = dt
     self.desired_state = (0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-  def f(self, k_state, inputs):
+  def f(self, k_state, inputs, system_plant_noise):
     # # use RK4 to get the updated states
     # k1_state = self.euler_state_update(k_state, inputs, self.dt/6)
     # k2_state = self.euler_state_update(k1_state, inputs, self.dt/3)
@@ -95,10 +95,16 @@ class Car(DynamicSystem):
             ]
         )
 
-  def h(self, k_state, parameters):
+  def h(self, k_state, parameters, measurement_noise):
     x_desired, y_desired, vx_desired, vy_desired, accx_desired, accy_desired, angle_desired, angle_dot_desired, angle_ddot_desired = self.desired_state
     px, py, orientation, vel, w = k_state
     kp, kv, kori, kw = parameters
+
+    px = px + torch.randn(1)*(0.01**0.5)
+    py = py + torch.randn(1)*(0.01**0.5)
+    orientation = orientation + torch.randn(1)*(0.01**0.5)
+    vel = vel + torch.randn(1)*(0.01**0.5)
+    w = w + torch.randn(1)*(0.01**0.5)
 
     orientation_cos = torch.cos(orientation)
     orientation_sin = torch.sin(orientation)
@@ -111,7 +117,7 @@ class Car(DynamicSystem):
     err_angle = angle_desired - orientation
     orientation_ddot = kori * err_angle + kw * (angle_dot_desired - w) + angle_ddot_desired
 
-    return (acceleration, orientation_ddot)
+    return (acceleration + torch.randn(1)*(0.01**0.5), orientation_ddot + torch.randn(1)*(0.01**0.5))
 
   def set_parameters(self, parameters):
     self.initial_parameters = parameters
